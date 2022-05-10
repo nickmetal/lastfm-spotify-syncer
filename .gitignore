@@ -1,3 +1,6 @@
+.cache*
+*cache
+.missed_spotify_tracks
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
