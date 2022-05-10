@@ -1,7 +1,6 @@
 """Containers module."""
 
 import logging
-import sqlite3
 from pydantic import BaseSettings, Field
 
 from dependency_injector import containers, providers

@@ -31,9 +31,6 @@ class Syncer:
         self.logger = logger 
         self._cache_file = '.cache_processed'
 
-    def sync_lastfm_likes_with_spotify(self):
-        raise NotImplemented
-
     def _load_processed_tracks(self) -> List[str]:
         self.logger.info(f'download syncer cache: {self._cache_file}')
 
@@ -73,13 +70,6 @@ class Syncer:
 
             Method sometimes requires user input from STDIN. 
         """
-        def load_cache():
-            with open('lastfm.cache', 'rb') as file:
-                return pickle.load(file)
-
-        def _track_exists(sync_track: SyncTrack, tracks: List[Dict]):
-            return tracks and any(sync_track.spotify_track_uri == track['uri'] for track in tracks)
-
         tracks_to_load = []
         missed_tracks = []
 
