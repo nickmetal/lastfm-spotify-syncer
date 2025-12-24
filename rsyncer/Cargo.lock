@@ -2241,6 +2241,7 @@ dependencies = [
  "futures-util",
  "lastfm-rust",
  "log",
+ "rand 0.9.2",
  "rspotify",
  "serde",
  "serde_json",

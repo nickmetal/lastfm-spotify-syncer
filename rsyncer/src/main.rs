@@ -1,6 +1,5 @@
 mod syncer;
 use log::info;
-use rsyncer::clients::LocalStorage;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

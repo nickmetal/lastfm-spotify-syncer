@@ -24,6 +24,9 @@ pub enum Error {
 
     #[error("Storage error: {0}")]
     StorageError(#[from] async_duckdb::Error),
+
+    #[error("Unknown Track: {0}")]
+    UnknownTrack(String),
 }
 
 impl From<std::env::VarError> for Error {
@@ -37,3 +40,5 @@ impl From<std::io::Error> for Error {
         Error::ConfigurationError(err.to_string())
     }
 }
+
+pub type Result<T> = core::result::Result<T, Error>;

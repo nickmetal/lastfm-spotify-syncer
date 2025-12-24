@@ -1,14 +1,14 @@
-use std::{collections::HashSet, path::PathBuf};
-
-use log::debug;
 use serde::{Deserialize, Serialize};
 use serde_json;
+use std::collections::HashSet;
+use std::sync::Arc;
 
-use crate::clients::{entities::Track, errors::Error};
-// use dotenv::dotenv;
-// use lastfm_rust::api::Track;
+use crate::clients::{
+    LocalStorage,
+    entities::Track,
+    errors::{Error, Result},
+};
 use lastfm_rust::{APIResponse, Error as LastFMError, Lastfm};
-// use std::error::Error;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct LastFMAPITrack {
@@ -40,76 +40,17 @@ struct AuthSession {
 struct AuthSessionResponse {
     session: AuthSession,
 }
-// Handles caching of Last.fm session key to avoid re-authentication for each run. It uses local file storage for simplicity.
-// NOTE: this manager is for a single user application. Maybe extend later to multi-user?
-
-// Result of loading cached auth session key from local storage
-enum LastFMCachedAuthResult {
-    Cached(String),
-    NotFound,
-    Error(Error),
-}
-
-struct LastFMCachedAuth {}
-
-impl LastFMCachedAuth {
-    fn new() -> Self {
-        LastFMCachedAuth {}
-    }
-
-    pub async fn store_session_key(&self, key: String) -> Result<(), Error> {
-        let cache_path = self.get_cache_file_path();
-        tokio::fs::write(cache_path.clone(), key).await?;
-        debug!("Stored Last.fm session key in cache in {cache_path:?}");
-        Ok(())
-    }
-    pub async fn load_session_key(&self) -> LastFMCachedAuthResult {
-        let cache_path = self.get_cache_file_path();
-        match tokio::fs::try_exists(cache_path.clone()).await {
-            Ok(exists) => {
-                if exists {
-                    match tokio::fs::read_to_string(cache_path).await {
-                        Ok(contents) => {
-                            debug!("Loaded Last.fm session key from cache");
-                            LastFMCachedAuthResult::Cached(contents)
-                        }
-                        Err(e) => {
-                            debug!("Failed to load Last.fm session key from cache: {e}");
-                            LastFMCachedAuthResult::Error(Error::from(e))
-                        }
-                    }
-                } else {
-                    debug!("No cached Last.fm session key found in {cache_path:?}");
-                    LastFMCachedAuthResult::NotFound
-                }
-            }
-            Err(e) => {
-                debug!("Error checking for Last.fm session key cache: {e}");
-                LastFMCachedAuthResult::Error(Error::from(e))
-            }
-        }
-    }
-
-    fn get_cache_file_path(&self) -> PathBuf {
-        dirs::cache_dir()
-            .unwrap_or_else(|| PathBuf::from("/tmp")) // Fallback to /tmp if cache directory can't be determined
-            .join(".rsyncer_lfm_session_cache")
-    }
-}
 
 pub struct LastFmClient {
     lastfm: Lastfm,
-    cached_auth: LastFMCachedAuth,
+    storage: Arc<LocalStorage>,
 }
 
 impl LastFmClient {
-    pub fn new(lastfm: Lastfm) -> Self {
-        LastFmClient {
-            lastfm,
-            cached_auth: LastFMCachedAuth::new(),
-        }
+    pub fn new(lastfm: Lastfm, storage: Arc<LocalStorage>) -> Self {
+        LastFmClient { lastfm, storage }
     }
-    pub fn try_default() -> Result<Self, Error> {
+    pub fn try_default(storage: Arc<LocalStorage>) -> Result<Self> {
         let api_key = std::env::var("LASTFM_API_KEY")?;
         let api_secret = std::env::var("LASTFM_API_SECRET")?;
 
@@ -118,10 +59,10 @@ impl LastFmClient {
             .api_secret(api_secret)
             .build()?;
 
-        Ok(LastFmClient::new(lastfm))
+        Ok(LastFmClient::new(lastfm, storage))
     }
 
-    pub async fn get_session_key_from_api(&self) -> Result<String, Error> {
+    pub async fn get_session_key_from_api(&self) -> Result<String> {
         let response = self.lastfm.auth().get_token().send().await?;
         let token = match response {
             APIResponse::Success(value) => value.token,
@@ -146,49 +87,40 @@ impl LastFmClient {
 
     // Authorize the client by obtaining a session key
     // All calls that require authentication will use this session key
-    pub async fn authorize_client(&mut self) -> Result<(), Error> {
-        // Request token
-        let session_key_result = self.cached_auth.load_session_key().await;
-        match session_key_result {
-            LastFMCachedAuthResult::Cached(session_key) => {
-                self.lastfm.set_sk(session_key);
-                // validate session key. Key may be invalid if user revoked access or by other reasons
-                match self.lastfm.user().get_info().send().await {
-                    Ok(APIResponse::Success(_)) => {
-                        debug!("Loaded valid Last.fm session key from cache");
-                    }
-                    Ok(APIResponse::Error(err)) => {
-                        debug!("Cached Last.fm session key is invalid: {err:?}, re-authenticating");
-                        // Invalidate cached session key and re-authenticate
-                        let session_key = self.get_session_key_from_api().await?;
-                        self.lastfm.set_sk(session_key.clone());
-                        // Store session key in cache
-                        self.cached_auth.store_session_key(session_key).await?;
-                    }
-                    Err(err) => {
-                        debug!("Cached Last.fm session key is invalid: {err:?}, re-authenticating");
-                        // Invalidate cached session key and re-authenticate
-                        let session_key = self.get_session_key_from_api().await?;
-                        self.lastfm.set_sk(session_key.clone());
-                        // Store session key in cache
-                        self.cached_auth.store_session_key(session_key).await?;
-                    }
-                }
-            }
-            LastFMCachedAuthResult::NotFound => {
-                // No cached session key found, create a new one and store it
+    pub async fn authorize_client(&mut self) -> Result<()> {
+        // Get cached session key from local storage if available
+        let session_key_result = self.storage.read_session_key().await;
 
-                let session_key = self.get_session_key_from_api().await?;
-                self.lastfm.set_sk(session_key.clone());
-                // Store session key in cache
-                self.cached_auth.store_session_key(session_key).await?;
-            }
-            LastFMCachedAuthResult::Error(err) => return Err(err),
+        if let Some(session_key) = session_key_result {
+            // TODO: add session key validation. Key may be invalid if user revoked access or by other reasons
+            // Current issue: `self.lastfm.user().get_info()` call panics due to internal response unwrap
+            //     match self.lastfm.user().get_info().send().await {
+            //         Ok(APIResponse::Success(response)) => {
+            //             debug!("Loaded valid Last.fm session key from cache: {response:?}");
+            //             return Ok(());
+            //         }
+            //         Ok(APIResponse::Error(err)) => {
+            //             debug!("Cached Last.fm session key is invalid: {err:?}, re-authenticating");
+            //         }
+            //         Err(err) => {
+            //             debug!("Cached Last.fm session key is invalid: {err:?}, re-authenticating");
+            //         }
+            //     }
+            // };
+            self.lastfm.set_sk(session_key.clone());
+            return Ok(());
         }
+
+        let session_key_from_api = self.get_session_key_from_api().await?;
+        self.lastfm.set_sk(session_key_from_api.clone());
+        // Store session key in storage to avoid re-authentication next time
+        self.storage
+            .update_session_key(session_key_from_api)
+            .await?;
         Ok(())
     }
 
-    pub async fn track_exists(&self, track: &Track) -> Result<(bool), Error> {
+    pub async fn track_exists(&self, track: &Track) -> Result<bool> {
         let mut track_api = self.lastfm.track();
         let search_response = track_api
             .search()
@@ -211,6 +143,7 @@ impl LastFmClient {
             0 => Ok(false),
             1 => Ok(true),
             _ => {
+                // Collect distinct artist names specified in track artist field
                 let distinct_artist_names: HashSet<String> = HashSet::from_iter(
                     response
                         .results
@@ -232,7 +165,7 @@ impl LastFmClient {
         }
     }
 
-    pub async fn love_track(&self, track: &Track) -> Result<(), Error> {
+    pub async fn love_track(&self, track: &Track) -> Result<()> {
         self.lastfm
             .track()
             .love()

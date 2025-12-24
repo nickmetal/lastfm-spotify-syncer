@@ -1,5 +1,7 @@
 Rsyncer - a rust implementation of Track likes syncer
 
+
+
 ### Envs vars
 
 ```
@@ -19,3 +21,6 @@ TODO
 ### Tests
 
 TODO
+
+### Warning
+This tool relies on "lastfm-rust" library which is not not production ready: it prints debug information to stdout and doesn't handle errors properly. Use at your own risk.

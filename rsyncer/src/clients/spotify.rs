@@ -4,7 +4,7 @@ use log::debug;
 
 use crate::clients::{
     entities::{Artist, Track},
-    errors::Error,
+    errors::{Error, Result},
 };
 use futures::stream::TryStreamExt;
 use rspotify::{
@@ -25,7 +25,7 @@ impl From<SavedTrack> for Track {
 }
 
 pub struct SpotifyClient {
-    pub spotify: AuthCodeSpotify, // TODO: test generic client
+    pub spotify: AuthCodeSpotify,
 }
 
 impl SpotifyClient {
@@ -37,32 +37,22 @@ impl SpotifyClient {
     }
 
     // Fetch tracks from Spotify Liked Songs default playlist
-    pub async fn get_liked_tracks(&self) -> Result<Box<[Track]>, Error> {
-        let mut tracks = vec![];
-
-        // Obtaining the access token
-
+    pub async fn get_liked_tracks(&self) -> Result<Box<[Track]>> {
+        let mut tracks: Vec<Track> = Vec::new();
         let mut stream = self.spotify.current_user_saved_tracks(None);
-
-        // .current_user_top_tracks_manual(None, Some(10), Some(0))
-        // let mut stream = spotify.current_user_top_tracks(None);
-
         while let Some(track) = stream.try_next().await? {
-            tracks.push(Track::from(track));
-            break; // TODO: remove break to fetch all tracks
+            if tracks.len() > 20 {
+                break;
+            } else {
+                tracks.push(Track::from(track));
+            }
         }
-
         Ok(tracks.into_boxed_slice())
-        // Ok(tracks
-        //     .into_iter()
-        //     .take(5)
-        //     .collect::<Vec<_>>()
-        //     .into_boxed_slice())
     }
 
     // Authorize the Spotify client via CLI prompt and OAuth flow
     // This function requires the `cli` feature enabled.
-    pub async fn authorize_client(&self) -> Result<(), Error> {
+    pub async fn authorize_client(&self) -> Result<()> {
         let url = self.spotify.get_authorize_url(false)?;
         // This function requires the `cli` feature enabled.
         self.spotify.prompt_for_token(&url).await?;
@@ -72,7 +62,7 @@ impl SpotifyClient {
     }
 
     // Create a SpotifyClient from environment variables or raise a configuration error
-    pub fn try_default() -> Result<Self, Error> {
+    pub fn try_default() -> Result<Self> {
         let creds = Credentials::from_env()
         .ok_or_else(|| Error::ConfigurationError("Missing Spotify credentials in environment variables. Check README.MD for details.".into()))?;
         let oauth = OAuth::from_env(scopes!("user-top-read", "user-library-read"))
