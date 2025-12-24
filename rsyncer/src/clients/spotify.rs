@@ -38,15 +38,8 @@ impl SpotifyClient {
 
     // Fetch tracks from Spotify Liked Songs default playlist
     pub async fn get_liked_tracks(&self) -> Result<Box<[Track]>> {
-        let mut tracks: Vec<Track> = Vec::new();
-        let mut stream = self.spotify.current_user_saved_tracks(None);
-        while let Some(track) = stream.try_next().await? {
-            if tracks.len() > 20 {
-                break;
-            } else {
-                tracks.push(Track::from(track));
-            }
-        }
+        let stream = self.spotify.current_user_saved_tracks(None);
+        let tracks: Vec<Track> = stream.map_ok(Track::from).try_collect().await?;
         Ok(tracks.into_boxed_slice())
     }
 

@@ -1,5 +1,42 @@
 Rsyncer - a rust implementation of Track likes syncer
 
+### Warning
+> This tool relies on "lastfm-rust" library which is not not production ready: it prints debug information to stdout and doesn't handle errors properly. Use at your own risk.
+
+### Code composition
+
+```mermaid
+flowchart TD
+    A["main.rs (Entry Point)"] -->|calls| B[Syncer]
+    B --> C[Config]
+    C --> D[SpotifyClient]
+    C --> E[LastFmClient]
+    C --> F[LocalStorage]
+
+    subgraph Clients
+        D
+        E
+        F
+        G[Entities]
+        H[Errors]
+    end
+    
+    D -.->|"get_liked_tracks()"| D
+    F -.->|"get_synced_tracks()"| F
+    F -.->|"mark_tracks_as_synced()"| F
+    E -.->|"track_exists()"| E
+    E -.->|"love_track()"| E
+
+    B --- G
+    B --- H
+    D --- G
+    D --- H
+    E --- G
+    E --- H
+    F --- G
+    F --- H
+```
+
 
 
 ### Envs vars
@@ -16,11 +53,12 @@ export RUST_LOG=info
 
 ### CLI
 
-TODO
+```sh
+cargo run
+```
 
 ### Tests
 
-TODO
-
-### Warning
-This tool relies on "lastfm-rust" library which is not not production ready: it prints debug information to stdout and doesn't handle errors properly. Use at your own risk.
+```rust
+todo!()
+```

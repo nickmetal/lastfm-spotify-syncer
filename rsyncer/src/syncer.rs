@@ -1,6 +1,5 @@
 use futures::stream::{StreamExt, iter};
 use log::{debug, info, warn};
-use rand::Rng;
 use rsyncer::clients::LocalStorage;
 use rsyncer::clients::{
     errors::{Error, Result},
@@ -14,12 +13,14 @@ pub struct Config {
     pub spotify: SpotifyClient,
     pub lastfm: LastFmClient,
     pub storage: Arc<LocalStorage>,
+    pub concurrency: usize,
 }
 
 pub struct ConfigBuilder {
     spotify: Option<SpotifyClient>,
     lastfm: Option<LastFmClient>,
     storage: Option<Arc<LocalStorage>>,
+    concurrency: Option<usize>,
 }
 
 impl ConfigBuilder {
@@ -28,6 +29,7 @@ impl ConfigBuilder {
             spotify: None,
             lastfm: None,
             storage: None,
+            concurrency: None, // Default concurrency for sync calls to LastFM API. Default is 10.
         }
     }
 
@@ -48,6 +50,7 @@ impl ConfigBuilder {
             spotify,
             lastfm,
             storage,
+            concurrency: self.concurrency.unwrap_or(10),
         })
     }
 }
@@ -91,15 +94,14 @@ impl Syncer {
 
         // Mark tracks as loved on LastFM concurrently
 
+        let concurrency = self.config.concurrency; // Use concurrency from config
+
         let sync_results = iter(unprocessed_tracks)
-            .then(|t| async move {
-                let mut rng = rand::rng();
-                let random_value: u64 = rng.random_range(1..1000000);
-                info!("--- Processing START: {} ---", random_value);
-                let res = match lastfm.track_exists(&t).await {
+            .map(|t| async move {
+                match lastfm.track_exists(&t).await {
                     Ok(exists) => {
                         if exists {
-                            match self.config.lastfm.love_track(&t).await {
+                            match lastfm.love_track(&t).await {
                                 Ok(_) => Ok(t.id),
                                 Err(e) => Err(e),
                             }
@@ -108,10 +110,9 @@ impl Syncer {
                         }
                     }
                     Err(e) => Err(e),
-                };
-                info!("--- Processing END: {} ---", random_value);
-                res
+                }
             })
+            .buffer_unordered(concurrency)
             .collect::<Vec<Result<String>>>()
             .await;
 
@@ -121,7 +122,7 @@ impl Syncer {
             .filter_map(|res| match res {
                 Ok(id) => Some(id),
                 Err(e) => {
-                    warn!("Error processing track: {:?}", e);
+                    warn!("Error processing track: {e:?}");
                     None
                 }
             })
