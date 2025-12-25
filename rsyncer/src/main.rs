@@ -6,7 +6,7 @@ mod syncer;
 fn init_logger() {
     use env_logger::Env;
     use log::LevelFilter;
-    let mut builder = env_logger::Builder::from_env(Env::default());
+    let mut builder = env_logger::Builder::from_env(Env::default().default_filter_or("info"));
     // Disable logs from rspotify_http as they are too verbose
     builder.filter_module("rspotify_http", LevelFilter::Off);
     builder.init();

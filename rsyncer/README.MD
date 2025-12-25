@@ -58,7 +58,10 @@ export ENV_FILE_PATH=.path/to/your/.env
 ### CLI
 
 ```sh
+# dev mode
 cargo run
+# release mode
+rsyncer sync
 ```
 
 ### Tests
