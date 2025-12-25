@@ -58,7 +58,6 @@ impl LastFmClient {
             .api_key(api_key)
             .api_secret(api_secret)
             .build()?;
-
         Ok(LastFmClient::new(lastfm, storage))
     }
 

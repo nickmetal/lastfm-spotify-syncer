@@ -20,7 +20,7 @@ flowchart TD
         G[Entities]
         H[Errors]
     end
-    
+
     D -.->|"get_liked_tracks()"| D
     F -.->|"get_synced_tracks()"| F
     F -.->|"mark_tracks_as_synced()"| F
@@ -43,9 +43,9 @@ flowchart TD
 
 ```
 # As env variables:
-export SPOTIFY_CLIENT_ID=your_spotify_client_id
-export SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
-export SPOTIFY_REDIRECT_URI=http://127.0.0.1:8888/callback
+export RSPOTIFY_CLIENT_ID=your_spotify_client_id
+export RSPOTIFY_CLIENT_SECRET=your_spotify_client_secret
+export RSPOTIFY_REDIRECT_URI=http://127.0.0.1:8888/callback
 export LASTFM_API_KEY=your_lastfm_api_key
 export LASTFM_API_SECRET=your_lastfm_api_secret
 export RUST_LOG=info
@@ -68,4 +68,12 @@ rsyncer sync
 
 ```rust
 todo!()
+```
+
+
+### Bump version
+
+```sh
+cargo install cargo-edit
+cargo set-version --bump minor
 ```

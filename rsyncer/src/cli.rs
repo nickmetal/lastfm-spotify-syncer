@@ -1,4 +1,4 @@
-use log::info;
+use log::{debug, info};
 use rsyncer::clients::errors::Result;
 
 use crate::syncer;
@@ -11,14 +11,15 @@ pub async fn run() -> Result<()> {
             clap::Command::new("sync").about("Synchronize liked tracks between Spotify and LastFM"),
         );
     let matches = cmd.get_matches();
-    _ = match matches.subcommand() {
-        Some(("sync", _matches)) => sync_tracks().await,
+    match matches.subcommand() {
+        Some(("sync", _matches)) => sync_tracks().await?,
         _ => unreachable!("clap should ensure we don't get here"),
     };
     Ok(())
 }
 
 async fn sync_tracks() -> Result<()> {
+    debug!("Building config ...");
     let mut config = syncer::ConfigBuilder::new().build().await?;
     info!("Authorizing clients ...");
     config.storage.init_db().await?;

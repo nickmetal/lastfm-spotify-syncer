@@ -19,7 +19,7 @@ impl From<SavedTrack> for Track {
             artist: Artist {
                 name: f.track.artists[0].name.clone(),
             },
-            url: "test".to_string(),
+            url: "todo!".to_string(),
         }
     }
 }
@@ -32,9 +32,6 @@ impl SpotifyClient {
     pub fn new(spotify: AuthCodeSpotify) -> Self {
         SpotifyClient { spotify }
     }
-    pub fn test(&self) {
-        println!("SpotifyClient test");
-    }
 
     // Fetch tracks from Spotify Liked Songs default playlist
     pub async fn get_liked_tracks(&self) -> Result<Box<[Track]>> {
@@ -46,6 +43,7 @@ impl SpotifyClient {
     // Authorize the Spotify client via CLI prompt and OAuth flow
     // This function requires the `cli` feature enabled.
     pub async fn authorize_client(&self) -> Result<()> {
+        debug!("Starting Spotify authorization ...");
         let url = self.spotify.get_authorize_url(false)?;
         // This function requires the `cli` feature enabled.
         self.spotify.prompt_for_token(&url).await?;
@@ -62,6 +60,7 @@ impl SpotifyClient {
         .ok_or_else(|| Error::ConfigurationError("Missing Spotify OAuth configuration in environment variables. Check README.MD for details.".into()))?;
 
         // Set up token caching in a default cache directory
+        // TODO: check for duckdb usage here
         let cache_path = dirs::cache_dir()
             .unwrap_or_else(|| PathBuf::from("/tmp")) // Fallback to /tmp if cache directory can't be determined
             .join(".rsyncer_cache");
