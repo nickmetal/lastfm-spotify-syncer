@@ -42,12 +42,16 @@ flowchart TD
 ### Envs vars
 
 ```
+# As env variables:
 export SPOTIFY_CLIENT_ID=your_spotify_client_id
 export SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
-export SPOTIFY_REDIRECT_URI=your_spotify_redirect_uri
+export SPOTIFY_REDIRECT_URI=http://127.0.0.1:8888/callback
 export LASTFM_API_KEY=your_lastfm_api_key
 export LASTFM_API_SECRET=your_lastfm_api_secret
 export RUST_LOG=info
+
+# or in a .env file:
+export ENV_FILE_PATH=.path/to/your/.env
 ```
 
 

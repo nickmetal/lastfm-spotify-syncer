@@ -79,7 +79,7 @@ impl Syncer {
         // Filter out already processed tracks
         let processed_track_ids: Vec<_> = self.config.storage.get_synced_tracks().await?;
 
-        debug!(
+        info!(
             "{} tracks have already been processed",
             processed_track_ids.len()
         );

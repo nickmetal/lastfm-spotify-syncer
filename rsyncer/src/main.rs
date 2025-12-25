@@ -1,21 +1,25 @@
-mod syncer;
 use log::info;
+
+mod cli;
+mod syncer;
+
+fn init_logger() {
+    use env_logger::Env;
+    use log::LevelFilter;
+    let mut builder = env_logger::Builder::from_env(Env::default());
+    // Disable logs from rspotify_http as they are too verbose
+    builder.filter_module("rspotify_http", LevelFilter::Off);
+    builder.init();
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::init();
-
-    let mut config = syncer::ConfigBuilder::new().build().await?;
-
-    info!("Authorizing clients ...");
-    config.storage.init_db().await?;
-    // CLI prompts may be shown on those two calls
-    config.spotify.authorize_client().await?;
-    // Some of the LastFM methods(3d party crate) may panic if not authorized
-    config.lastfm.authorize_client().await?;
-
-    let syncer = syncer::Syncer::new(config);
-    syncer.sync().await?;
-
+    // Load env vars from .env file if ENV_FILE_PATH is set.
+    if let Ok(env_file) = std::env::var("ENV_FILE_PATH") {
+        dotenv::from_filename(env_file).ok();
+        info!("Loaded environment variables from .env file");
+    }
+    init_logger();
+    cli::run().await?;
     Ok(())
 }
