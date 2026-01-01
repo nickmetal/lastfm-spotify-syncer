@@ -66,8 +66,10 @@ rsyncer sync
 
 ### Tests
 
-```rust
-todo!()
+```sh
+cargo test
+# with coverage
+cargo llvm-cov --summary-only
 ```
 
 ### Code formatting and linting

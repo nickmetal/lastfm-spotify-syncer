@@ -129,3 +129,127 @@ impl Syncer {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rsyncer::clients::entities::{Artist, Track};
+
+    fn create_test_track(id: &str, name: &str, artist: &str) -> Track {
+        Track {
+            id: id.to_string(),
+            name: name.to_string(),
+            artist: Artist { name: artist.to_string() },
+        }
+    }
+
+    #[test]
+    fn test_config_builder_new() {
+        let builder = ConfigBuilder::new();
+        assert!(builder.spotify.is_none());
+        assert!(builder.lastfm.is_none());
+        assert!(builder.storage.is_none());
+        assert!(builder.concurrency.is_none());
+    }
+
+    #[test]
+    fn test_config_builder_default_trait() {
+        let builder = ConfigBuilder::default();
+        assert!(builder.spotify.is_none());
+        assert!(builder.lastfm.is_none());
+        assert!(builder.storage.is_none());
+        assert!(builder.concurrency.is_none());
+    }
+
+    #[test]
+    fn test_track_creation() {
+        let track = create_test_track("track1", "Song Name", "Artist Name");
+        assert_eq!(track.id, "track1");
+        assert_eq!(track.name, "Song Name");
+        assert_eq!(track.artist.name, "Artist Name");
+    }
+
+    // Helper function that mirrors the sync logic for filtering unprocessed tracks
+    fn filter_unprocessed_tracks(all_tracks: Vec<Track>, processed_ids: Vec<String>) -> Vec<Track> {
+        let processed_set: HashSet<_> = processed_ids.into_iter().collect();
+        all_tracks.into_iter().filter(|t| !processed_set.contains(&t.id)).collect()
+    }
+
+    #[test]
+    fn test_filter_unprocessed_tracks_with_no_processed() {
+        let tracks = vec![
+            create_test_track("1", "Track 1", "Artist 1"),
+            create_test_track("2", "Track 2", "Artist 2"),
+        ];
+        let processed: Vec<String> = vec![];
+
+        let result = filter_unprocessed_tracks(tracks, processed);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_filter_unprocessed_tracks_with_all_processed() {
+        let tracks = vec![
+            create_test_track("1", "Track 1", "Artist 1"),
+            create_test_track("2", "Track 2", "Artist 2"),
+        ];
+        let processed = vec!["1".to_string(), "2".to_string()];
+
+        let result = filter_unprocessed_tracks(tracks, processed);
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_filter_unprocessed_tracks_with_partial_processed() {
+        let tracks = vec![
+            create_test_track("1", "Track 1", "Artist 1"),
+            create_test_track("2", "Track 2", "Artist 2"),
+            create_test_track("3", "Track 3", "Artist 3"),
+        ];
+        let processed = vec!["2".to_string()];
+
+        let result = filter_unprocessed_tracks(tracks, processed);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].id, "1");
+        assert_eq!(result[1].id, "3");
+    }
+
+    #[test]
+    fn test_filter_unprocessed_tracks_with_duplicates() {
+        let tracks = vec![
+            create_test_track("1", "Track 1", "Artist 1"),
+            create_test_track("2", "Track 2", "Artist 2"),
+        ];
+        // HashSet will deduplicate automatically
+        let processed = vec!["1".to_string(), "1".to_string()];
+
+        let result = filter_unprocessed_tracks(tracks, processed);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id, "2");
+    }
+
+    #[test]
+    fn test_filter_unprocessed_tracks_empty_input() {
+        let tracks: Vec<Track> = vec![];
+        let processed = vec!["1".to_string()];
+
+        let result = filter_unprocessed_tracks(tracks, processed);
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_filter_unprocessed_tracks_preserves_order() {
+        let tracks = vec![
+            create_test_track("1", "Track 1", "Artist 1"),
+            create_test_track("2", "Track 2", "Artist 2"),
+            create_test_track("3", "Track 3", "Artist 3"),
+            create_test_track("4", "Track 4", "Artist 4"),
+        ];
+        let processed = vec!["2".to_string(), "4".to_string()];
+
+        let result = filter_unprocessed_tracks(tracks, processed);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].id, "1");
+        assert_eq!(result[1].id, "3");
+    }
+}
