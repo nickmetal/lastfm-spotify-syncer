@@ -70,6 +70,11 @@ rsyncer sync
 todo!()
 ```
 
+### Run linter
+```sh
+cargo clippy
+```
+
 
 ### Bump version
 

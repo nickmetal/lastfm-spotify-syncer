@@ -34,3 +34,15 @@ codegen-units = 1 # Better optimization, slower compile
 opt-level = "z"   # Optimize for size
 strip = true      # Strip symbols automatically
 panic = "abort"   # Smaller panic handler
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = "warn"
+pedantic = "warn"
+cargo = "warn"
+# Allow some pedantic lints that are too noisy
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"

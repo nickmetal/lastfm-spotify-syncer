@@ -52,9 +52,7 @@ impl LocalStorage {
             session_table = Table::LastFMSession.as_str(),
             track_table = Table::SyncedTrack.as_str()
         );
-        self.client
-            .conn(move |conn| conn.execute_batch(&table_query))
-            .await?;
+        self.client.conn(move |conn| conn.execute_batch(&table_query)).await?;
 
         debug!("Successfully initialized local storage database");
         Ok(())
@@ -105,9 +103,7 @@ impl LocalStorage {
             "
         );
 
-        self.client
-            .conn(move |conn| conn.execute_batch(&query))
-            .await?;
+        self.client.conn(move |conn| conn.execute_batch(&query)).await?;
 
         debug!("Update session key in local storage using MERGE INTO");
         Ok(())
@@ -115,10 +111,8 @@ impl LocalStorage {
 
     // Check if a track ID exists in the synced tracks table
     pub async fn is_track_synced(&self, track_id: &str) -> Result<bool> {
-        let query = format!(
-            "SELECT 1 FROM {} WHERE track_id = ?1 LIMIT 1;",
-            Table::SyncedTrack.as_str()
-        );
+        let query =
+            format!("SELECT 1 FROM {} WHERE track_id = ?1 LIMIT 1;", Table::SyncedTrack.as_str());
         let track_id_owned = track_id.to_string();
 
         let exists = self
@@ -136,9 +130,9 @@ impl LocalStorage {
                 async_duckdb::duckdb::Error::QueryReturnedNoRows => Ok(false),
                 _ => Err(Error::StorageError(DuckDBError::Duckdb(e))),
             },
-            Err(_) => Err(Error::ConfigurationError(
-                "Failed to check if track is synced".to_string(),
-            )),
+            Err(_) => {
+                Err(Error::ConfigurationError("Failed to check if track is synced".to_string()))
+            }
         }
     }
 
@@ -156,10 +150,7 @@ impl LocalStorage {
                 let params: Vec<[&str; 1]> =
                     track_ids.iter().map(move |id| [id.as_str()]).collect();
 
-                info!(
-                    "Marking {} tracks as synced in local storage",
-                    track_ids.len()
-                );
+                info!("Marking {} tracks as synced in local storage", track_ids.len());
                 let mut app: async_duckdb::duckdb::Appender<'_> =
                     conn.appender(Table::SyncedTrack.as_str())?;
                 app.append_rows(&params)?;

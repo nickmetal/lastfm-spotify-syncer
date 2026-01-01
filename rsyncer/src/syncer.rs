@@ -47,12 +47,7 @@ impl ConfigBuilder {
             Some(l) => l,
             None => LastFmClient::try_default(storage.clone())?,
         };
-        Ok(Config {
-            spotify,
-            lastfm,
-            storage,
-            concurrency: self.concurrency.unwrap_or(10),
-        })
+        Ok(Config { spotify, lastfm, storage, concurrency: self.concurrency.unwrap_or(10) })
     }
 }
 
@@ -87,17 +82,12 @@ impl Syncer {
         // Filter out already processed tracks
         let processed_track_ids: Vec<_> = self.config.storage.get_synced_tracks().await?;
 
-        info!(
-            "{} tracks have already been processed",
-            processed_track_ids.len()
-        );
+        info!("{} tracks have already been processed", processed_track_ids.len());
 
         // Identify unprocessed tracks by using their IDs and local storage
         let processed_set: HashSet<_> = processed_track_ids.into_iter().collect();
-        let unprocessed_tracks: Vec<_> = tracks
-            .into_iter()
-            .filter(|t| !processed_set.contains(&t.id))
-            .collect();
+        let unprocessed_tracks: Vec<_> =
+            tracks.into_iter().filter(|t| !processed_set.contains(&t.id)).collect();
 
         let lastfm = &self.config.lastfm;
 
@@ -130,10 +120,7 @@ impl Syncer {
             .collect::<Vec<_>>();
 
         // Mark tracks as synced in local storage to avoid reprocessing them in future runs
-        self.config
-            .storage
-            .mark_tracks_as_synced(unprocessed_track_ids.clone())
-            .await?;
+        self.config.storage.mark_tracks_as_synced(unprocessed_track_ids.clone()).await?;
 
         info!(
             "Sync process completed successfully. Synced tracks: {:?}",

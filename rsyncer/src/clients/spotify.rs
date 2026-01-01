@@ -16,9 +16,7 @@ impl From<SavedTrack> for Track {
         Track {
             id: f.track.id.unwrap().to_string(),
             name: f.track.name,
-            artist: Artist {
-                name: f.track.artists[0].name.clone(),
-            },
+            artist: Artist { name: f.track.artists[0].name.clone() },
         }
     }
 }
@@ -67,11 +65,7 @@ impl SpotifyClient {
         let spotify = AuthCodeSpotify::with_config(
             creds,
             oauth,
-            Config {
-                token_cached: true,
-                cache_path,
-                ..Default::default()
-            },
+            Config { token_cached: true, cache_path, ..Default::default() },
         );
 
         Ok(Self { spotify })

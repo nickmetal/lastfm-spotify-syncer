@@ -4,10 +4,8 @@ use rsyncer::clients::errors::Result;
 use crate::syncer;
 
 pub async fn run() -> Result<()> {
-    let cmd = clap::Command::new("rsyncer")
-        .bin_name("rsyncer")
-        .subcommand_required(true)
-        .subcommand(
+    let cmd =
+        clap::Command::new("rsyncer").bin_name("rsyncer").subcommand_required(true).subcommand(
             clap::Command::new("sync").about("Synchronize liked tracks between Spotify and LastFM"),
         );
     let matches = cmd.get_matches();

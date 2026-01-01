@@ -54,10 +54,7 @@ impl LastFmClient {
         let api_key = std::env::var("LASTFM_API_KEY")?;
         let api_secret = std::env::var("LASTFM_API_SECRET")?;
 
-        let lastfm = Lastfm::builder()
-            .api_key(api_key)
-            .api_secret(api_secret)
-            .build()?;
+        let lastfm = Lastfm::builder().api_key(api_key).api_secret(api_secret).build()?;
         Ok(LastFmClient::new(lastfm, storage))
     }
 
@@ -72,13 +69,7 @@ impl LastFmClient {
         // Authorize the token
         self.lastfm.auth().pls_authorize(token.to_string());
         // Get session key
-        let response = self
-            .lastfm
-            .auth()
-            .get_session()
-            .token(&token)
-            .send()
-            .await?;
+        let response = self.lastfm.auth().get_session().token(&token).send().await?;
 
         let auth_response: AuthSessionResponse = serde_json::from_value(response)?;
         Ok(auth_response.session.key)
@@ -99,9 +90,7 @@ impl LastFmClient {
         let session_key_from_api = self.get_session_key_from_api().await?;
         self.lastfm.set_sk(session_key_from_api.clone());
         // Store session key in storage to avoid re-authentication next time
-        self.storage
-            .update_session_key(session_key_from_api)
-            .await?;
+        self.storage.update_session_key(session_key_from_api).await?;
         Ok(())
     }
 
@@ -130,12 +119,7 @@ impl LastFmClient {
             _ => {
                 // Collect distinct artist names specified in track artist field
                 let distinct_artist_names: HashSet<String> = HashSet::from_iter(
-                    response
-                        .results
-                        .trackmatches
-                        .track
-                        .iter()
-                        .map(|t| t.artist.clone()),
+                    response.results.trackmatches.track.iter().map(|t| t.artist.clone()),
                 );
                 // If all found tracks are by the same artist, consider it exists and it is valid candidate
                 if distinct_artist_names.len() == 1 {
