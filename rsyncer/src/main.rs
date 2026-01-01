@@ -19,11 +19,9 @@ fn init_logger() {
 #[tokio::main]
 async fn main() -> Result<()> {
     // Load env vars from ENV_FILE_PATH if set, otherwise from .env file if present.
-    if let Ok(env_path) = std::env::var("ENV_FILE_PATH") {
-        dotenvy::from_path(env_path).ok();
-    } else {
-        dotenvy::from_filename(".env").ok();
-    }
+    let env_file = std::env::var("ENV_FILE_PATH").unwrap_or_else(|_| ".env".to_string());
+    dotenvy::from_path(env_file).ok();
+
     init_logger();
     cli::run().await
 }
