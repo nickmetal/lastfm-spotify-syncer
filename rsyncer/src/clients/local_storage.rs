@@ -7,6 +7,10 @@ use std::path::PathBuf;
 
 use crate::clients::errors::{Error, Result};
 
+// Default DB user identifier for session key storage
+// This is a single-user application.
+const DEFAULT_USER: &str = "default";
+
 enum Table {
     LastFMSession,
     SyncedTrack,
@@ -37,7 +41,7 @@ impl LocalStorage {
             "
             CREATE SEQUENCE IF NOT EXISTS {seq} START 1;
             CREATE TABLE IF NOT EXISTS {session_table} (
-                user TEXT PRIMARY KEY DEFAULT 'default',
+                user TEXT PRIMARY KEY DEFAULT '{DEFAULT_USER}',
                 session_key TEXT
             );
             CREATE TABLE IF NOT EXISTS {track_table} (
@@ -67,7 +71,7 @@ impl LocalStorage {
 
     pub async fn read_session_key(&self) -> Option<String> {
         let query = format!(
-            "SELECT session_key FROM {} WHERE user = 'default';",
+            "SELECT session_key FROM {} WHERE user = '{DEFAULT_USER}';",
             Table::LastFMSession.as_str()
         );
 
@@ -85,20 +89,6 @@ impl LocalStorage {
         }
     }
 
-    // pub async fn store_session_key(&self, key: String) -> Result<(), Error> {
-    //     let query = format!(
-    //         "INSERT INTO {} (session_key) VALUES (?1);",
-    //         Table::LastFMSession.as_str()
-    //     );
-
-    //     self.client
-    //         .conn(move |conn| conn.execute(&query, [key]))
-    //         .await?;
-
-    //     debug!("Stored new session key in local storage");
-    //     Ok(())
-    // }
-
     pub async fn update_session_key(&self, key: String) -> Result<()> {
         let table = Table::LastFMSession.as_str();
         let key_escaped = key.replace('\'', "''");
@@ -106,7 +96,7 @@ impl LocalStorage {
             "
             MERGE INTO {table}
             USING (
-                SELECT unnest(['default']) AS user,
+                SELECT unnest(['{DEFAULT_USER}']) AS user,
                        unnest(['{key_escaped}']) AS session_key
             ) AS upserts
             ON (upserts.user = {table}.user)
@@ -146,7 +136,9 @@ impl LocalStorage {
                 async_duckdb::duckdb::Error::QueryReturnedNoRows => Ok(false),
                 _ => Err(Error::StorageError(DuckDBError::Duckdb(e))),
             },
-            Err(_) => todo!(),
+            Err(_) => Err(Error::ConfigurationError(
+                "Failed to check if track is synced".to_string(),
+            )),
         }
     }
 

@@ -1,6 +1,6 @@
 [package]
 name = "rsyncer"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 rust-version = "1.92.0"
 
@@ -16,8 +16,21 @@ lastfm-rust = "0.1.0"
 log = "0.4.29"
 rand = "0.9.2"
 
-rspotify = { version = "*", features = ["cli"] }
+rspotify = { version = "0.15.3", features = ["cli"] }
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.145"
+serde_json = "1.0.148"
 thiserror = "2.0.17"
-tokio = { version = "1.48", features = ["full"] }
+tokio = { version = "1.48", features = [
+    "rt-multi-thread",
+    "macros",
+    "fs",
+    "io-util",
+    "net",
+] }
+
+[profile.release]
+lto = true        # Link-time optimization
+codegen-units = 1 # Better optimization, slower compile
+opt-level = "z"   # Optimize for size
+strip = true      # Strip symbols automatically
+panic = "abort"   # Smaller panic handler

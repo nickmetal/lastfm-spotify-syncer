@@ -92,21 +92,7 @@ impl LastFmClient {
 
         if let Some(session_key) = session_key_result {
             // TODO: add session key validation. Key may be invalid if user revoked access or by other reasons
-            // Current issue: `self.lastfm.user().get_info()` call panics due to internal response unwrap
-            //     match self.lastfm.user().get_info().send().await {
-            //         Ok(APIResponse::Success(response)) => {
-            //             debug!("Loaded valid Last.fm session key from cache: {response:?}");
-            //             return Ok(());
-            //         }
-            //         Ok(APIResponse::Error(err)) => {
-            //             debug!("Cached Last.fm session key is invalid: {err:?}, re-authenticating");
-            //         }
-            //         Err(err) => {
-            //             debug!("Cached Last.fm session key is invalid: {err:?}, re-authenticating");
-            //         }
-            //     }
-            // };
-            self.lastfm.set_sk(session_key.clone());
+            self.lastfm.set_sk(session_key);
             return Ok(());
         }
 

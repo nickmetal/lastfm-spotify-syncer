@@ -6,6 +6,7 @@ use rsyncer::clients::{
     lastfm::LastFmClient,
     spotify::SpotifyClient,
 };
+use std::collections::HashSet;
 use std::sync::Arc;
 
 // Configuration for the Syncer Struct
@@ -55,6 +56,12 @@ impl ConfigBuilder {
     }
 }
 
+impl Default for ConfigBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // The main Syncer struct that performs the synchronization
 pub struct Syncer {
     config: Config,
@@ -65,6 +72,7 @@ impl Syncer {
         Syncer { config }
     }
 
+    /// Synchronizes liked tracks from Spotify to Last.fm
     pub async fn sync(&self) -> Result<()> {
         info!("Starting sync process ...");
         debug!("Fetching liked tracks from Spotify ...");
@@ -85,9 +93,10 @@ impl Syncer {
         );
 
         // Identify unprocessed tracks by using their IDs and local storage
+        let processed_set: HashSet<_> = processed_track_ids.into_iter().collect();
         let unprocessed_tracks: Vec<_> = tracks
             .into_iter()
-            .filter(|t| !processed_track_ids.contains(&t.id))
+            .filter(|t| !processed_set.contains(&t.id))
             .collect();
 
         let lastfm = &self.config.lastfm;
@@ -98,19 +107,11 @@ impl Syncer {
 
         let sync_results = iter(unprocessed_tracks)
             .map(|t| async move {
-                match lastfm.track_exists(&t).await {
-                    Ok(exists) => {
-                        if exists {
-                            match lastfm.love_track(&t).await {
-                                Ok(_) => Ok(t.id),
-                                Err(e) => Err(e),
-                            }
-                        } else {
-                            Err(Error::UnknownTrack(t.id))
-                        }
-                    }
-                    Err(e) => Err(e),
+                if !lastfm.track_exists(&t).await? {
+                    return Err(Error::UnknownTrack(t.id));
                 }
+                lastfm.love_track(&t).await?;
+                Ok(t.id)
             })
             .buffer_unordered(concurrency)
             .collect::<Vec<Result<String>>>()

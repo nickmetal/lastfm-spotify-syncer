@@ -19,7 +19,6 @@ impl From<SavedTrack> for Track {
             artist: Artist {
                 name: f.track.artists[0].name.clone(),
             },
-            url: "todo!".to_string(),
         }
     }
 }
@@ -34,10 +33,10 @@ impl SpotifyClient {
     }
 
     // Fetch tracks from Spotify Liked Songs default playlist
-    pub async fn get_liked_tracks(&self) -> Result<Box<[Track]>> {
+    pub async fn get_liked_tracks(&self) -> Result<Vec<Track>> {
         let stream = self.spotify.current_user_saved_tracks(None);
         let tracks: Vec<Track> = stream.map_ok(Track::from).try_collect().await?;
-        Ok(tracks.into_boxed_slice())
+        Ok(tracks)
     }
 
     // Authorize the Spotify client via CLI prompt and OAuth flow
