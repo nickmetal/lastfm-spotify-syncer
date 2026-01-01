@@ -41,15 +41,23 @@ struct AuthSessionResponse {
     session: AuthSession,
 }
 
+/// Client for interacting with the Last.fm API, handling authentication and track operations.
+/// Client for interacting with the Last.fm API
 pub struct LastFmClient {
     lastfm: Lastfm,
     storage: Arc<LocalStorage>,
 }
 
 impl LastFmClient {
+    /// Creates a new Last.fm client with the provided API client and storage
+    #[must_use]
     pub fn new(lastfm: Lastfm, storage: Arc<LocalStorage>) -> Self {
         LastFmClient { lastfm, storage }
     }
+
+    /// Creates a Last.fm client using API credentials from environment variables
+    ///
+    /// Expects `LASTFM_API_KEY` and `LASTFM_API_SECRET` environment variables to be set.
     pub fn try_default(storage: Arc<LocalStorage>) -> Result<Self> {
         let api_key = std::env::var("LASTFM_API_KEY")?;
         let api_secret = std::env::var("LASTFM_API_SECRET")?;
@@ -58,6 +66,9 @@ impl LastFmClient {
         Ok(LastFmClient::new(lastfm, storage))
     }
 
+    /// Obtains a new session key from the Last.fm API via user authorization
+    ///
+    /// This will prompt the user to authorize the application in their browser.
     pub async fn get_session_key_from_api(&self) -> Result<String> {
         let response = self.lastfm.auth().get_token().send().await?;
         let token = match response {
@@ -67,7 +78,7 @@ impl LastFmClient {
             }
         };
         // Authorize the token
-        self.lastfm.auth().pls_authorize(token.to_string());
+        self.lastfm.auth().pls_authorize(token.clone());
         // Get session key
         let response = self.lastfm.auth().get_session().token(&token).send().await?;
 
@@ -75,8 +86,11 @@ impl LastFmClient {
         Ok(auth_response.session.key)
     }
 
-    // Authorize the client by obtaining a session key
-    // All calls that require authentication will use this session key
+    /// Authorizes the client by obtaining a session key
+    ///
+    /// Attempts to load a cached session key from local storage first.
+    /// If not found, initiates the OAuth flow to obtain a new session key.
+    /// All authenticated API calls will use this session key.
     pub async fn authorize_client(&mut self) -> Result<()> {
         // Get cached session key from local storage if available
         let session_key_result = self.storage.read_session_key().await;
@@ -94,6 +108,11 @@ impl LastFmClient {
         Ok(())
     }
 
+    /// Checks if a track exists on Last.fm by searching for it
+    ///
+    /// Returns `true` if exactly one matching track is found, or if multiple tracks
+    /// by the same artist are found. Returns an error if tracks by different artists
+    /// are found (ambiguous result).
     pub async fn track_exists(&self, track: &Track) -> Result<bool> {
         let mut track_api = self.lastfm.track();
         let search_response = track_api
@@ -118,9 +137,8 @@ impl LastFmClient {
             1 => Ok(true),
             _ => {
                 // Collect distinct artist names specified in track artist field
-                let distinct_artist_names: HashSet<String> = HashSet::from_iter(
-                    response.results.trackmatches.track.iter().map(|t| t.artist.clone()),
-                );
+                let distinct_artist_names: HashSet<String> =
+                    response.results.trackmatches.track.iter().map(|t| t.artist.clone()).collect();
                 // If all found tracks are by the same artist, consider it exists and it is valid candidate
                 if distinct_artist_names.len() == 1 {
                     Ok(true)
@@ -134,6 +152,9 @@ impl LastFmClient {
         }
     }
 
+    /// Marks a track as "loved" on Last.fm
+    ///
+    /// Requires the client to be authorized before calling.
     pub async fn love_track(&self, track: &Track) -> Result<()> {
         self.lastfm
             .track()

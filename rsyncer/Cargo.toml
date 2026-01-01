@@ -1,8 +1,13 @@
 [package]
 name = "rsyncer"
-version = "0.3.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.92.0"
+description = "Sync liked tracks from Spotify to Last.fm"
+license = "MIT"
+repository = "https://github.com/nickmetal/lastfm-spotify-syncer"
+keywords = ["spotify", "lastfm", "music", "sync"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 async-duckdb = "0.3.0"
@@ -40,9 +45,11 @@ unsafe_code = "forbid"
 missing_docs = "warn"
 
 [lints.clippy]
-all = "warn"
-pedantic = "warn"
-cargo = "warn"
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
 # Allow some pedantic lints that are too noisy
 module_name_repetitions = "allow"
 missing_errors_doc = "allow"
+# Allow multiple crate versions from transitive dependencies
+multiple_crate_versions = "allow"

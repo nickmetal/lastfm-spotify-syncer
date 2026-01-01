@@ -21,24 +21,32 @@ impl From<SavedTrack> for Track {
     }
 }
 
+/// A client for interacting with the Spotify API, handling authentication and track retrieval.
 pub struct SpotifyClient {
+    /// The underlying authenticated Spotify API client.
     pub spotify: AuthCodeSpotify,
 }
 
 impl SpotifyClient {
+    /// Creates a new `SpotifyClient` with the given `AuthCodeSpotify` instance.
+    #[must_use]
     pub fn new(spotify: AuthCodeSpotify) -> Self {
         SpotifyClient { spotify }
     }
 
-    // Fetch tracks from Spotify Liked Songs default playlist
+    /// Fetches all liked tracks from the user's Spotify "Liked Songs" playlist
+    ///
+    /// Returns a vector of tracks with their IDs, names, and artist information.
     pub async fn get_liked_tracks(&self) -> Result<Vec<Track>> {
         let stream = self.spotify.current_user_saved_tracks(None);
         let tracks: Vec<Track> = stream.map_ok(Track::from).try_collect().await?;
         Ok(tracks)
     }
 
-    // Authorize the Spotify client via CLI prompt and OAuth flow
-    // This function requires the `cli` feature enabled.
+    /// Authorizes the Spotify client via CLI prompt and OAuth flow
+    ///
+    /// This will open a browser window for the user to log in and authorize the application.
+    /// Requires the `cli` feature to be enabled.
     pub async fn authorize_client(&self) -> Result<()> {
         debug!("Starting Spotify authorization ...");
         let url = self.spotify.get_authorize_url(false)?;
@@ -49,7 +57,7 @@ impl SpotifyClient {
         Ok(())
     }
 
-    // Create a SpotifyClient from environment variables or raise a configuration error
+    /// Creates a `SpotifyClient` from environment variables or returns a configuration error if required variables are missing.
     pub fn try_default() -> Result<Self> {
         let creds = Credentials::from_env()
         .ok_or_else(|| Error::ConfigurationError("Missing Spotify credentials in environment variables. Check README.MD for details.".into()))?;

@@ -1,3 +1,8 @@
+//! Rsyncer - Sync liked tracks from Spotify to Last.fm
+//!
+//! A command-line tool that synchronizes your Spotify liked tracks
+//! to Last.fm by marking them as loved tracks.
+
 mod cli;
 mod syncer;
 use env_logger::Env;

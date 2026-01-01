@@ -12,7 +12,7 @@ pub async fn run() -> Result<()> {
     match matches.subcommand() {
         Some(("sync", _matches)) => sync_tracks().await?,
         _ => unreachable!("clap should ensure we don't get here"),
-    };
+    }
     Ok(())
 }
 

@@ -25,15 +25,27 @@ impl Table {
     }
 }
 
+/// Local storage client using `DuckDB` for caching and persistence
+///
+/// Stores Last.fm session keys and tracks that have been synced to avoid
+/// reprocessing them on subsequent runs.
 pub struct LocalStorage {
     client: async_duckdb::Client,
 }
 
 impl LocalStorage {
+    /// Creates a new `LocalStorage` instance with the provided `DuckDB` client
+    #[must_use]
     pub fn new(client: async_duckdb::Client) -> Self {
         LocalStorage { client }
     }
 
+    /// Initializes the database by creating necessary tables and sequences
+    ///
+    /// Creates:
+    /// - `last_fm_session` table for storing session keys
+    /// - `synced_track` table for tracking processed tracks
+    /// - An ID sequence for potential future use
     pub async fn init_db(&self) -> Result<()> {
         // Create necessary tables that Rsyncer will use
         let seq_name = "id_sequence";
@@ -58,15 +70,21 @@ impl LocalStorage {
         Ok(())
     }
 
+    /// Creates a `LocalStorage` instance using the default cache directory
+    ///
+    /// The database file is stored at `~/.cache/.rsyncer_db.duckdb` (or `/tmp` as fallback).
     pub async fn try_default() -> Result<Self> {
         let db_path = dirs::cache_dir()
             .unwrap_or_else(|| PathBuf::from("/tmp")) // Fallback to /tmp if cache directory can't be determined
             .join(".rsyncer_db.duckdb");
         let client: async_duckdb::Client = ClientBuilder::new().path(&db_path).open().await?;
-        debug!("Opened local storage database at {db_path:?}");
+        debug!("Opened local storage database at {}", db_path.display());
         Ok(LocalStorage { client })
     }
 
+    /// Reads the cached Last.fm session key from local storage
+    ///
+    /// Returns `None` if no session key is stored or if an error occurs.
     pub async fn read_session_key(&self) -> Option<String> {
         let query = format!(
             "SELECT session_key FROM {} WHERE user = '{DEFAULT_USER}';",
@@ -87,6 +105,9 @@ impl LocalStorage {
         }
     }
 
+    /// Stores or updates the Last.fm session key in local storage
+    ///
+    /// Uses a MERGE statement to insert or update the session key for the default user.
     pub async fn update_session_key(&self, key: String) -> Result<()> {
         let table = Table::LastFMSession.as_str();
         let key_escaped = key.replace('\'', "''");
@@ -109,7 +130,9 @@ impl LocalStorage {
         Ok(())
     }
 
-    // Check if a track ID exists in the synced tracks table
+    /// Checks if a track ID exists in the synced tracks table
+    ///
+    /// Returns `true` if the track has been previously synced, `false` otherwise.
     pub async fn is_track_synced(&self, track_id: &str) -> Result<bool> {
         let query =
             format!("SELECT 1 FROM {} WHERE track_id = ?1 LIMIT 1;", Table::SyncedTrack.as_str());
@@ -136,8 +159,10 @@ impl LocalStorage {
         }
     }
 
-    // Adds track IDs to the synced tracks table
-    // WARNING: This method doesn't add any records if at least one of the track IDs already exists in db
+    /// Adds track IDs to the synced tracks table to mark them as processed
+    ///
+    /// # Warning
+    /// This method may not add records if any of the track IDs already exist in the database.
     pub async fn mark_tracks_as_synced(&self, track_ids: Vec<String>) -> Result<()> {
         if track_ids.is_empty() {
             debug!("No tracks to mark as synced");
@@ -160,12 +185,14 @@ impl LocalStorage {
             .await;
 
         match res {
-            Ok(_) => Ok(()),
+            Ok(()) => Ok(()),
             Err(e) => Err(Error::StorageError(e)),
         }
     }
 
-    // Fetch all synced track IDs from the local storage
+    /// Fetches all synced track IDs from the local storage
+    ///
+    /// Returns a vector of track IDs that have been previously processed.
     pub async fn get_synced_tracks(&self) -> Result<Vec<String>> {
         let query = format!("SELECT track_id FROM {};", Table::SyncedTrack.as_str());
 

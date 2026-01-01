@@ -70,9 +70,16 @@ rsyncer sync
 todo!()
 ```
 
-### Run linter
+### Code formatting and linting
 ```sh
-cargo clippy
+# 1. Format code
+cargo fmt
+
+# 2. Run clippy and fix auto-fixable issues
+cargo clippy --fix --allow-dirty
+
+# 3. Run clippy again to see remaining issues
+cargo clippy --all-targets -- -D warnings
 ```
 
 
