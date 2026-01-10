@@ -2,7 +2,8 @@ use rspotify::ClientError;
 use thiserror::Error;
 
 /// Error types for the rsyncer application
-#[derive(Error, Debug)]
+#[non_exhaustive]
+#[derive(Debug, Error)]
 pub enum Error {
     /// Failed to parse or transmit data
     #[error("Failed to parse transmit data, error: {0}")]
