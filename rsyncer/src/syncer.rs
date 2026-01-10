@@ -119,13 +119,11 @@ impl Syncer {
             })
             .collect::<Vec<_>>();
 
-        // Mark tracks as synced in local storage to avoid reprocessing them in future runs
-        self.config.storage.mark_tracks_as_synced(unprocessed_track_ids.clone()).await?;
+        let unprocessed_track_ids_len = unprocessed_track_ids.len();
 
-        info!(
-            "Sync process completed successfully. Synced tracks: {:?}",
-            unprocessed_track_ids.len()
-        );
+        // Mark tracks as synced in local storage to avoid reprocessing them in future runs
+        self.config.storage.mark_tracks_as_synced(unprocessed_track_ids).await?;
+        info!("Sync process completed successfully. Synced tracks: {unprocessed_track_ids_len:?}",);
         Ok(())
     }
 }

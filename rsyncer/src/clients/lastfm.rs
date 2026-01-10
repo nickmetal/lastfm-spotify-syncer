@@ -1,3 +1,4 @@
+use log::info;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashSet;
@@ -156,6 +157,7 @@ impl LastFmClient {
     ///
     /// Requires the client to be authorized before calling.
     pub async fn love_track(&self, track: &Track) -> Result<()> {
+        info!("Marking track as loved on Last.fm: {} - {}", track.artist.name, track.name);
         self.lastfm
             .track()
             .love()
