@@ -3,9 +3,10 @@
 //! A simple HTTP API that can be deployed to Cloud Run.
 
 use axum::{Json, Router, routing::get};
-use log::info;
+use log::{info, warn};
 use serde::Serialize;
 use std::net::SocketAddr;
+use tokio::signal;
 
 /// Health check response
 #[derive(Serialize)]
@@ -45,5 +46,32 @@ async fn main() {
     info!("Starting HTTP API server on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    info!("Server ready. Waiting for shutdown signal (SIGINT/SIGTERM)...");
+    axum::serve(listener, app).with_graceful_shutdown(shutdown_signal()).await.unwrap();
+    info!("Server has shut down gracefully.");
+}
+
+/// Wait for SIGINT or SIGTERM and log shutdown event
+async fn shutdown_signal() {
+    // SIGINT (Ctrl+C)
+    let ctrl_c = async {
+        signal::ctrl_c().await.expect("failed to install Ctrl+C handler");
+        warn!("Received SIGINT (Ctrl+C), shutting down...");
+    };
+    // SIGTERM (docker stop, podman stop, Cloud Run termination)
+    #[cfg(unix)]
+    let terminate = async {
+        use tokio::signal::unix::{SignalKind, signal};
+        let mut sigterm =
+            signal(SignalKind::terminate()).expect("failed to install SIGTERM handler");
+        sigterm.recv().await;
+        warn!("Received SIGTERM, shutting down...");
+    };
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
 }

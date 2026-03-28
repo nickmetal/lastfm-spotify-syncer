@@ -16,5 +16,11 @@ docker-build:
   echo "Building rsyncer-api:$VERSION"
   docker build --build-arg VERSION=$VERSION -t rsyncer-api:$VERSION .
 
+docker-run:
+  #!/usr/bin/env bash
+  VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+  echo "Running rsyncer-api:$VERSION"
+  docker run --rm -it rsyncer-api:$VERSION -p 8080:8080 --name rsyncer-api
+
 bump-minor:
     cargo set-version --bump minor

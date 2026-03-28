@@ -1,6 +1,6 @@
 [package]
 name = "rsyncer"
-version = "0.9.0"
+version = "0.10.0"
 edition = "2024"
 rust-version = "1.92.0"
 description = "Sync liked tracks from Spotify to Last.fm"
