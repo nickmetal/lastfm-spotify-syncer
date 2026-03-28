@@ -1,0 +1,20 @@
+test:
+  cargo llvm-cov --summary-only --features cli
+
+lint:
+  cargo clippy --all-targets --features cli -- -D warnings
+
+build-api:
+  cargo build --release --bin http_api
+
+build-cli:
+  cargo build --release --bin rsyncer --features cli
+
+docker-build:
+  #!/usr/bin/env bash
+  VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+  echo "Building rsyncer-api:$VERSION"
+  docker build --build-arg VERSION=$VERSION -t rsyncer-api:$VERSION .
+
+bump-minor:
+    cargo set-version --bump minor

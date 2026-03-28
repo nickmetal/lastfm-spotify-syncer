@@ -1,0 +1,42 @@
+# Copy this file to terraform.tfvars and fill in your values
+# terraform.tfvars is gitignored and will not be committed
+
+# Required: Your billing account ID
+# Run: gcloud billing accounts list
+billing_account = "XXXXXX-XXXXXX-XXXXXX"
+
+# Required: Email of the project owner
+project_owner_email = "your-email@example.com"
+
+# Optional: Organization ID (leave empty for personal projects)
+# Run: gcloud organizations list
+org_id = ""
+
+# Optional: Folder ID to create the project in
+folder_id = ""
+
+# Optional: Project settings
+project_name = "rsyncer"
+project_id   = "rsyncer"  # Will be suffixed with random string
+
+# Optional: Region (default: europe-central2  as per calculator)
+region = "europe-central2"
+
+# Optional: Monthly budget in USD (default: 5)
+monthly_budget_amount = 5
+
+# Optional: Emails to receive budget alerts (in addition to billing admins)
+budget_alert_emails = []
+
+# Optional: Cloud Run settings
+cloud_run_service_name = "rsyncer"
+cloud_run_image        = "gcr.io/cloudrun/hello"  # Replace with your image
+
+# Optional: Environment
+environment = "dev"
+
+# Optional: Additional labels
+labels = {
+  app        = "rsyncer"
+  managed_by = "terraform"
+}

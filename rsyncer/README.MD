@@ -58,18 +58,20 @@ export ENV_FILE_PATH=.path/to/your/.env
 ### CLI
 
 ```sh
-# dev mode
-cargo run
+# dev mode (requires cli feature for DuckDB)
+cargo run --features cli
+
 # release mode
-rsyncer sync
+cargo build --release --features cli
+./target/release/rsyncer sync
 ```
 
 ### Tests
 
 ```sh
-cargo test
+cargo test --features cli
 # with coverage
-cargo llvm-cov --summary-only
+cargo llvm-cov --summary-only --features cli
 ```
 
 ### Code formatting and linting
@@ -88,6 +90,43 @@ cargo clippy --all-targets -- -D warnings
 ### Bump version
 
 ```sh
-cargo install cargo-edit
+# cargo install cargo-edit
 cargo set-version --bump minor
+```
+
+
+# HTTP API
+
+The project includes a simple HTTP API (`http_api`) for deployment to Cloud Run.
+
+**Note:** The HTTP API is built without the `cli` feature, which excludes DuckDB and other CLI-only dependencies. This results in faster builds and smaller binary size.
+
+### Endpoints
+- `GET /` - Hello world
+- `GET /health` - Health check with version info
+
+### Local Development
+```sh
+cargo run --bin http_api
+# Then: curl http://localhost:8080/health
+```
+
+## Docker Build
+
+### Local Docker Build
+```sh
+VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+docker build --build-arg VERSION=$VERSION -t rsyncer-api:$VERSION .
+
+# Run locally
+docker run -p 8080:8080 rsyncer-api:$VERSION
+```
+
+## Cloud Deployment
+
+**Prerequisites:** Run `terraform apply` first to create the Artifact Registry repository and enable required APIs.
+
+### Build with Cloud Build
+```sh
+gcloud builds submit --config=cloudbuild.yaml .
 ```

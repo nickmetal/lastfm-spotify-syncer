@@ -1,0 +1,29 @@
+# Rust build artifacts
+target/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Terraform
+terraform/
+*.tfvars
+*.tfstate*
+.terraform/
+
+# Development
+xdev/
+*.log
+
+# macOS
+.DS_Store
+
+# Documentation (not needed for build)
+*.md
+!README.md

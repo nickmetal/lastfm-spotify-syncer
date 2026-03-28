@@ -1,0 +1,127 @@
+# Cloud Build configuration for rsyncer http_api
+#
+# Usage:
+#   gcloud builds submit --config=cloudbuild.yaml .
+
+substitutions:
+  _SERVICE_NAME: rsyncer-api
+  _REGION: europe-central2
+
+steps:
+  # Step 1: Extract version from Cargo.toml
+  - name: "gcr.io/cloud-builders/gcloud"
+    id: "extract-version"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        VERSION=$$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+        echo "Extracted version: $$VERSION"
+        echo "$$VERSION" > /workspace/VERSION
+
+  # Step 2: Build the Docker image with version tag
+  - name: "gcr.io/cloud-builders/docker"
+    id: "build"
+    env:
+      - "REGION=${_REGION}"
+      - "SERVICE_NAME=${_SERVICE_NAME}"
+      - "PROJECT=${PROJECT_ID}"
+    script: |
+      #!/bin/bash
+      set -e
+      VERSION=$(cat /workspace/VERSION)
+      IMAGE_BASE="${REGION}-docker.pkg.dev/${PROJECT}/${SERVICE_NAME}/${SERVICE_NAME}"
+      echo "Building image: ${IMAGE_BASE}:${VERSION}"
+      # Enable BuildKit and use previous image as cache source
+      export DOCKER_BUILDKIT=1
+      docker pull "${IMAGE_BASE}:latest" || true
+      docker build \
+        --build-arg VERSION="${VERSION}" \
+        --build-arg BUILDKIT_INLINE_CACHE=1 \
+        --cache-from="${IMAGE_BASE}:latest" \
+        -t "${IMAGE_BASE}:${VERSION}" \
+        -t "${IMAGE_BASE}:latest" \
+        .
+    waitFor: ["extract-version"]
+
+  # Step 3: Push the Docker images
+  - name: "gcr.io/cloud-builders/docker"
+    id: "push"
+    env:
+      - "REGION=${_REGION}"
+      - "SERVICE_NAME=${_SERVICE_NAME}"
+      - "PROJECT=${PROJECT_ID}"
+    script: |
+      #!/bin/bash
+      set -e
+      VERSION=$(cat /workspace/VERSION)
+      IMAGE_BASE="${REGION}-docker.pkg.dev/${PROJECT}/${SERVICE_NAME}/${SERVICE_NAME}"
+      docker push "${IMAGE_BASE}:${VERSION}"
+      docker push "${IMAGE_BASE}:latest"
+    waitFor: ["build"]
+
+  # Step 4: Deploy to Cloud Run
+  - name: "gcr.io/cloud-builders/gcloud"
+    id: "deploy"
+    env:
+      - "REGION=${_REGION}"
+      - "SERVICE_NAME=${_SERVICE_NAME}"
+      - "PROJECT=${PROJECT_ID}"
+    script: |
+      #!/bin/bash
+      set -e
+      VERSION=$(cat /workspace/VERSION)
+      IMAGE_BASE="${REGION}-docker.pkg.dev/${PROJECT}/${SERVICE_NAME}/${SERVICE_NAME}"
+      # Deploy using the version tag for traceability
+      gcloud run deploy ${SERVICE_NAME} \
+        --image="${IMAGE_BASE}:${VERSION}" \
+        --region=${REGION} \
+        --platform=managed \
+        --allow-unauthenticated
+    waitFor: ["push"]
+
+  # Step 5: Cleanup old images and build artifacts after successful deploy
+  - name: "gcr.io/cloud-builders/gcloud"
+    id: "cleanup"
+    env:
+      - "REGION=${_REGION}"
+      - "SERVICE_NAME=${_SERVICE_NAME}"
+      - "PROJECT=${PROJECT_ID}"
+    script: |
+      #!/bin/bash
+      set -e
+      echo "=== Cleaning up old Docker images ==="
+      REPO="${REGION}-docker.pkg.dev/${PROJECT}/${SERVICE_NAME}/${SERVICE_NAME}"
+      KEEP_COUNT=1
+
+      # Get all image digests sorted by update time (newest first), skip first KEEP_COUNT
+      IMAGE_DIGESTS=$(gcloud artifacts docker images list "${REPO}" \
+        --include-tags \
+        --format="value(version)" \
+        --sort-by="~UPDATE_TIME" \
+        --limit=100 2>/dev/null)
+      COUNT=0
+      for DIGEST in $IMAGE_DIGESTS; do
+        COUNT=$((COUNT+1))
+        if [ $COUNT -le $KEEP_COUNT ]; then
+          continue
+        fi
+        if [ -n "$DIGEST" ]; then
+          echo "Deleting old image: ${REPO}@${DIGEST}"
+          gcloud artifacts docker images delete "${REPO}@${DIGEST}" --quiet --delete-tags 2>/dev/null || true
+        fi
+      done
+
+      echo "=== Cleaning up old Cloud Build source archives ==="
+      # Delete source archives older than 7 days
+      BUCKET="gs://${PROJECT}_cloudbuild/source/"
+      CUTOFF=$(date -d "7 days ago" +%Y-%m-%dT%H:%M:%S 2>/dev/null || date -v-7d +%Y-%m-%dT%H:%M:%S)
+
+      gsutil ls -l "$BUCKET" 2>/dev/null | grep -v "TOTAL:" | while read -r SIZE TIMESTAMP FILE; do
+        if [ -n "$FILE" ] && [[ "$TIMESTAMP" < "$CUTOFF" ]]; then
+          echo "Deleting old source archive: $FILE"
+          gsutil rm "$FILE" 2>/dev/null || true
+        fi
+      done
+
+      echo "Cleanup complete!"

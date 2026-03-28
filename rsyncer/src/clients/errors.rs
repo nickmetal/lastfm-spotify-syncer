@@ -31,6 +31,7 @@ pub enum Error {
     ConfigurationError(String),
 
     /// Error from the local `DuckDB` storage
+    #[cfg(feature = "cli")]
     #[error("Storage error: {0}")]
     StorageError(#[from] async_duckdb::Error),
 

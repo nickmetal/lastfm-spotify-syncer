@@ -1,0 +1,33 @@
+# Build artifacts
+target/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+
+# Documentation
+*.md
+!README.md
+
+# Terraform
+terraform/
+*.tfvars
+*.tfstate*
+.terraform/
+
+# Development
+xdev/
+*.log
+
+# macOS
+.DS_Store

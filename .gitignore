@@ -130,3 +130,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+terraform/terraform.tfvars
+rsyncer/terraform.tfvars
+rsyncer/terraform/terraform.tfvars
