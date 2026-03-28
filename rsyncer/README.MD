@@ -101,6 +101,14 @@ The project includes a simple HTTP API (`http_api`) for deployment to Cloud Run.
 
 **Note:** The HTTP API is built without the `cli` feature, which excludes DuckDB and other CLI-only dependencies. This results in faster builds and smaller binary size.
 
+### Authendication
+The API uses GCP IAM for authentication from TF `cloud_run_allowed_users`.
+Access example:
+```sh
+curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" https://YOUR_CLOUD_RUN_URL/your-endpoint
+```
+
+
 ### Endpoints
 - `GET /` - Hello world
 - `GET /health` - Health check with version info

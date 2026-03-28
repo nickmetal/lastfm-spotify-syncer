@@ -1,3 +1,8 @@
+variable "cloud_run_allowed_users" {
+  description = "List of emails allowed to invoke Cloud Run (user or service account emails)"
+  type        = list(string)
+  default     = []
+}
 variable "project_name" {
   description = "The display name of the GCP project"
   type        = string

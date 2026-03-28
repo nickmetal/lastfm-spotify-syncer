@@ -40,3 +40,9 @@ labels = {
   app        = "rsyncer"
   managed_by = "terraform"
 }
+
+# Optional: List of users allowed to invoke Cloud Run (user or service account emails)
+cloud_run_allowed_users = [
+  # "user1@example.com",
+  # "user2@example.com"
+]

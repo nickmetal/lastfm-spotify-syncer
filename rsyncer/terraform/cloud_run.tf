@@ -81,11 +81,11 @@ resource "google_cloud_run_v2_service" "main" {
   }
 }
 
-# Allow unauthenticated access (optional - remove if you need authentication)
-resource "google_cloud_run_v2_service_iam_member" "public_access" {
-  project  = google_cloud_run_v2_service.main.project
-  location = google_cloud_run_v2_service.main.location
-  name     = google_cloud_run_v2_service.main.name
-  role     = "roles/run.invoker"
-  member   = "allUsers"
+# IAM binding for allowed users (removes public access)
+resource "google_cloud_run_v2_service_iam_binding" "invoker" {
+  name    = google_cloud_run_v2_service.main.id
+  role    = "roles/run.invoker"
+  members = [for email in var.cloud_run_allowed_users : "user:${email}"]
 }
+
+## Public access is disabled. Only users in var.cloud_run_allowed_users can invoke the service.
