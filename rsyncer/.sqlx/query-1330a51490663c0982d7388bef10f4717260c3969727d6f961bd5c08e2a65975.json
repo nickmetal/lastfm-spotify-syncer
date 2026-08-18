@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                        INSERT INTO synced_track (track_id, created_at)\n                        SELECT *\n                        FROM UNNEST($1::text[], $2::timestamp[])\n                    ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TimestampArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1330a51490663c0982d7388bef10f4717260c3969727d6f961bd5c08e2a65975"
+}

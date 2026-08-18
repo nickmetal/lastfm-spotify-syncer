@@ -15,7 +15,7 @@ steps:
     args:
       - "-c"
       - |
-        VERSION=$$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+        VERSION=$$(grep '^version' rsyncer_api/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
         echo "Extracted version: $$VERSION"
         echo "$$VERSION" > /workspace/VERSION
 
@@ -72,12 +72,29 @@ steps:
       set -e
       VERSION=$(cat /workspace/VERSION)
       IMAGE_BASE="${REGION}-docker.pkg.dev/${PROJECT}/${SERVICE_NAME}/${SERVICE_NAME}"
-      # Deploy using the version tag for traceability
-      gcloud run deploy ${SERVICE_NAME} \
+      # Get the deployed service URI
+      SERVICE_URI=$(gcloud run services describe ${SERVICE_NAME} --region=${REGION} --format='value(status.url)')
+      REDIRECT_URI="${SERVICE_URI}/callback"
+      ENV_VARS="\
+      RSPOTIFY_REDIRECT_URI=${REDIRECT_URI},\
+      RUST_LOG=info,\
+      RUST_BACKTRACE=1,\
+      MIGRATIONS_PATH=/migrations"
+
+      SECRETS="\
+      RSPOTIFY_CLIENT_ID=RSPOTIFY_CLIENT_ID:latest,\
+      DATABASE_URL=DB_DSN:latest,\
+      RSPOTIFY_CLIENT_SECRET=RSPOTIFY_CLIENT_SECRET:latest,\
+      LASTFM_API_KEY=LASTFM_API_KEY:latest,\
+      LASTFM_API_SECRET=LASTFM_API_SECRET:latest"
+
+      gcloud run deploy "${SERVICE_NAME}" \
         --image="${IMAGE_BASE}:${VERSION}" \
-        --region=${REGION} \
+        --region="${REGION}" \
         --platform=managed \
-        --allow-unauthenticated
+        --max=3 \
+        --update-env-vars="${ENV_VARS}" \
+        --set-secrets="${SECRETS}"
     waitFor: ["push"]
 
   # Step 5: Cleanup old images and build artifacts after successful deploy

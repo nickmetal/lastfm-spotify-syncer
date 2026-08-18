@@ -64,7 +64,6 @@ variable "cloud_run_service_name" {
 variable "cloud_run_image" {
   description = "Container image for Cloud Run (use placeholder until image is built)"
   type        = string
-  default     = "gcr.io/cloudrun/hello" # Placeholder image
 }
 
 variable "environment" {
@@ -80,4 +79,29 @@ variable "labels" {
     app        = "rsyncer"
     managed_by = "terraform"
   }
+}
+
+# --- Secret variables for Cloud Run (set from tfvars) ---
+variable "RSPOTIFY_CLIENT_ID" {
+  description = "Spotify client ID"
+  type        = string
+}
+
+variable "RSPOTIFY_CLIENT_SECRET" {
+  description = "Spotify client secret"
+  type        = string
+}
+
+variable "LASTFM_API_KEY" {
+  description = "Last.fm API key"
+  type        = string
+}
+
+variable "LASTFM_API_SECRET" {
+  description = "Last.fm API secret"
+  type        = string
+}
+variable "DB_DSN" {
+  description = "DB DSN for cached tracks etc"
+  type        = string
 }

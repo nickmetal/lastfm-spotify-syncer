@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                        INSERT INTO lastfm_session_key (session_key, created_at) VALUES ($1::text, $2::timestamp)\n                    ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamp"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b350a7728005577bb96bc26fa144fccd63894f1ff638ba17a837cb0448aa4bff"
+}

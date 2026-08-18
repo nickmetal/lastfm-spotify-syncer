@@ -10,11 +10,6 @@ output "project_number" {
   value       = data.google_project.main.number
 }
 
-output "cloud_run_url" {
-  description = "The URL of the Cloud Run service"
-  value       = google_cloud_run_v2_service.main.uri
-}
-
 output "cloud_run_service_account" {
   description = "The service account used by Cloud Run"
   value       = google_service_account.cloud_run.email

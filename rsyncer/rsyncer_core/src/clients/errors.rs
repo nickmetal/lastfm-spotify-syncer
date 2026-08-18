@@ -1,9 +1,9 @@
 use rspotify::ClientError;
-use thiserror::Error;
+use thiserror::Error as ThisError;
 
 /// Error types for the rsyncer application
 #[non_exhaustive]
-#[derive(Debug, Error)]
+#[derive(Debug, ThisError)]
 pub enum Error {
     /// Failed to parse or transmit data
     #[error("Failed to parse transmit data, error: {0}")]
@@ -30,10 +30,9 @@ pub enum Error {
     #[error("Configuration error: {0}")]
     ConfigurationError(String),
 
-    /// Error from the local `DuckDB` storage
-    #[cfg(feature = "cli")]
+    // Generic error for storage-related calls
     #[error("Storage error: {0}")]
-    StorageError(#[from] async_duckdb::Error),
+    StorageError(String),
 
     /// Track not found on Last.fm
     #[error("Unknown Track: {0}")]
@@ -46,11 +45,12 @@ impl From<std::env::VarError> for Error {
     }
 }
 
-impl From<std::io::Error> for Error {
-    fn from(err: std::io::Error) -> Self {
-        Error::ConfigurationError(err.to_string())
-    }
-}
+// TODO: fix
+// impl From<std::io::Error> for Error {
+//     fn from(err: std::io::Error) -> Self {
+//         Error::ConfigurationError(err.to_string())
+//     }
+// }
 
 /// Result type alias using the crate's Error type
 pub type Result<T> = core::result::Result<T, Error>;

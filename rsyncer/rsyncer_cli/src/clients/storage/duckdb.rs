@@ -1,14 +1,22 @@
 use async_duckdb::ClientBuilder;
-use async_duckdb::Error as DuckDBError;
 use async_duckdb::duckdb::OptionalExt;
 use log::debug;
 use log::info;
+use rsyncer_core::errors::Error::StorageError;
+use rsyncer_core::storage::LastFMStorage;
 use std::path::PathBuf;
 
-use crate::clients::errors::{Error, Result};
+use async_trait::async_trait;
+use rsyncer_core::clients::errors::{Error, Result};
+use rsyncer_core::clients::storage::KeyReadRequest;
+use rsyncer_core::clients::storage::KeyReadResult;
+use rsyncer_core::clients::storage::KeyWriteResult;
+use rsyncer_core::clients::storage::LastFMSessionKey;
+use rsyncer_core::clients::storage::Storage;
 
 // Default DB user identifier for session key storage
 // This is a single-user application.
+// TODO: fix this
 const DEFAULT_USER: &str = "default";
 
 enum Table {
@@ -46,7 +54,7 @@ impl LocalStorage {
     /// - `last_fm_session` table for storing session keys
     /// - `synced_track` table for tracking processed tracks
     /// - An ID sequence for potential future use
-    pub async fn init_db(&self) -> Result<()> {
+    pub async fn init(&self) -> Result<()> {
         // Create necessary tables that Rsyncer will use
         let seq_name = "id_sequence";
         let table_query = format!(
@@ -64,7 +72,10 @@ impl LocalStorage {
             session_table = Table::LastFMSession.as_str(),
             track_table = Table::SyncedTrack.as_str()
         );
-        self.client.conn(move |conn| conn.execute_batch(&table_query)).await?;
+        self.client
+            .conn(move |conn| conn.execute_batch(&table_query))
+            .await
+            .map_err(|err: async_duckdb::Error| Error::StorageError(err.to_string()))?;
 
         debug!("Successfully initialized local storage database");
         Ok(())
@@ -77,7 +88,11 @@ impl LocalStorage {
         let db_path = dirs::cache_dir()
             .unwrap_or_else(|| PathBuf::from("/tmp")) // Fallback to /tmp if cache directory can't be determined
             .join(".rsyncer_db.duckdb");
-        let client: async_duckdb::Client = ClientBuilder::new().path(&db_path).open().await?;
+        let client: async_duckdb::Client = ClientBuilder::new()
+            .path(&db_path)
+            .open()
+            .await
+            .map_err(|err: async_duckdb::Error| Error::StorageError(err.to_string()))?;
         debug!("Opened local storage database at {}", db_path.display());
         Ok(LocalStorage { client })
     }
@@ -85,7 +100,7 @@ impl LocalStorage {
     /// Reads the cached Last.fm session key from local storage
     ///
     /// Returns `None` if no session key is stored or if an error occurs.
-    pub async fn read_session_key(&self) -> Option<String> {
+    async fn read_session_key(&self) -> Result<Option<String>> {
         let query = format!(
             "SELECT session_key FROM {} WHERE user = '{DEFAULT_USER}';",
             Table::LastFMSession.as_str()
@@ -94,21 +109,16 @@ impl LocalStorage {
         let key = self
             .client
             .conn(move |conn| conn.query_row(&query, [], |row| row.get(0).optional()))
-            .await;
+            .await
+            .map_err(|err| StorageError(err.to_string()))?;
 
-        match key {
-            Ok(opt) => opt,
-            Err(e) => {
-                debug!("Failed to read session key: {e:?}");
-                None
-            }
-        }
+        Ok(key)
     }
 
     /// Stores or updates the Last.fm session key in local storage
     ///
     /// Uses a MERGE statement to insert or update the session key for the default user.
-    pub async fn update_session_key(&self, key: String) -> Result<()> {
+    async fn update_session_key(&self, key: String) -> Result<()> {
         let table = Table::LastFMSession.as_str();
         let key_escaped = key.replace('\'', "''");
         let query = format!(
@@ -124,76 +134,43 @@ impl LocalStorage {
             "
         );
 
-        self.client.conn(move |conn| conn.execute_batch(&query)).await?;
+        self.client
+            .conn(move |conn| conn.execute_batch(&query))
+            .await
+            .map_err(|err: async_duckdb::Error| Error::StorageError(err.to_string()))?;
 
         debug!("Update session key in local storage using MERGE INTO");
         Ok(())
     }
+}
 
-    /// Checks if a track ID exists in the synced tracks table
-    ///
-    /// Returns `true` if the track has been previously synced, `false` otherwise.
-    pub async fn is_track_synced(&self, track_id: &str) -> Result<bool> {
-        let query =
-            format!("SELECT 1 FROM {} WHERE track_id = ?1 LIMIT 1;", Table::SyncedTrack.as_str());
-        let track_id_owned = track_id.to_string();
+#[async_trait]
+impl Storage for LocalStorage {
+    type ReadReq = KeyReadRequest;
+    type ReadRes = KeyReadResult;
+    type WriteReq = LastFMSessionKey;
+    type WriteRes = KeyWriteResult;
 
-        let exists = self
-            .client
-            .conn(move |conn| {
-                conn.query_row(&query, [track_id_owned.clone()], |row| {
-                    row.get::<_, i32>(0).optional()
-                })
-            })
-            .await;
-
-        match exists {
-            Ok(opt) => Ok(opt.is_some()),
-            Err(DuckDBError::Duckdb(e)) => match e {
-                async_duckdb::duckdb::Error::QueryReturnedNoRows => Ok(false),
-                _ => Err(Error::StorageError(DuckDBError::Duckdb(e))),
-            },
-            Err(_) => {
-                Err(Error::ConfigurationError("Failed to check if track is synced".to_string()))
-            }
-        }
+    async fn store(&self, request: Self::WriteReq) -> Result<Self::WriteRes> {
+        self.update_session_key(request.key).await?;
+        Ok(KeyWriteResult {})
     }
 
-    /// Adds track IDs to the synced tracks table to mark them as processed
-    ///
-    /// # Warning
-    /// This method may not add records if any of the track IDs already exist in the database.
-    pub async fn mark_tracks_as_synced(&self, track_ids: Vec<String>) -> Result<()> {
-        if track_ids.is_empty() {
-            debug!("No tracks to mark as synced");
-            return Ok(());
-        }
-
-        let res = self
-            .client
-            .conn(move |conn| {
-                let params: Vec<[&str; 1]> =
-                    track_ids.iter().map(move |id| [id.as_str()]).collect();
-
-                info!("Marking {} tracks as synced in local storage", track_ids.len());
-                let mut app: async_duckdb::duckdb::Appender<'_> =
-                    conn.appender(Table::SyncedTrack.as_str())?;
-                app.append_rows(&params)?;
-
-                Ok(())
-            })
-            .await;
-
-        match res {
-            Ok(()) => Ok(()),
-            Err(e) => Err(Error::StorageError(e)),
+    async fn read(&self, _request: Self::ReadReq) -> Result<Self::ReadRes> {
+        let key_opt = self.read_session_key().await?;
+        match key_opt {
+            Some(key) => Ok(KeyReadResult::Found(LastFMSessionKey { key })),
+            None => Ok(KeyReadResult::NotFound),
         }
     }
+}
 
+#[async_trait]
+impl LastFMStorage for LocalStorage {
     /// Fetches all synced track IDs from the local storage
     ///
     /// Returns a vector of track IDs that have been previously processed.
-    pub async fn get_synced_tracks(&self) -> Result<Vec<String>> {
+    async fn get_synced_tracks(&self) -> Result<Box<Vec<String>>> {
         let query = format!("SELECT track_id FROM {};", Table::SyncedTrack.as_str());
 
         let track_ids = self
@@ -208,8 +185,41 @@ impl LocalStorage {
                 }
                 Ok(ids)
             })
-            .await?;
+            .await
+            .map_err(|err: async_duckdb::Error| Error::StorageError(err.to_string()))?;
 
-        Ok(track_ids)
+        Ok(Box::new(track_ids))
+    }
+
+    /// Adds track IDs to the synced tracks table to mark them as processed
+    ///
+    /// # Warning
+    /// This method may not add records if any of the track IDs already exist in the database.
+    async fn mark_tracks_as_synced(&self, track_ids: Vec<String>) -> Result<()> {
+        if track_ids.is_empty() {
+            debug!("No tracks to mark as synced");
+            return Ok(());
+        }
+
+        let res = self
+            .client
+            .conn(move |conn| {
+                // TODO: try remove move: into iter instead of iter
+                let params: Vec<[&str; 1]> =
+                    track_ids.iter().map(move |id| [id.as_str()]).collect();
+
+                info!("Marking {} tracks as synced in local storage", track_ids.len());
+                let mut app: async_duckdb::duckdb::Appender<'_> =
+                    conn.appender(Table::SyncedTrack.as_str())?;
+                app.append_rows(&params)?;
+
+                Ok(())
+            })
+            .await;
+
+        match res {
+            Ok(()) => Ok(()),
+            Err(e) => Err(Error::StorageError(e.to_string())),
+        }
     }
 }

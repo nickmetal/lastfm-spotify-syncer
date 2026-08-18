@@ -38,8 +38,14 @@ environment = "dev"
 # Optional: Additional labels
 labels = {
   app        = "rsyncer"
-  managed_by = "terraform"
 }
+
+# --- Secret variables for Cloud Run (set your values here) ---
+RSPOTIFY_CLIENT_ID    = ""
+RSPOTIFY_CLIENT_SECRET = ""
+LASTFM_API_KEY        = ""
+LASTFM_API_SECRET     = ""
+  managed_by = "terraform"
 
 # Optional: List of users allowed to invoke Cloud Run (user or service account emails)
 cloud_run_allowed_users = [

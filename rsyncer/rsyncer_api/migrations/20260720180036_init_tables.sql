@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS lastfm_session_key (
+    id bigint GENERATED ALWAYS AS IDENTITY,
+    session_key VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+);
+CREATE TABLE IF NOT EXISTS synced_track (
+    track_id TEXT,
+    PRIMARY KEY (track_id),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
