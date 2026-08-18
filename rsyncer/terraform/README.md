@@ -125,11 +125,7 @@ After applying, you'll get:
 
 1. Build and push your container image:
    ```bash
-   # Using Cloud Build
-   gcloud builds submit --tag gcr.io/$(terraform output -raw project_id)/rsyncer
-
-   # Or using Artifact Registry
-   gcloud builds submit --tag $(terraform output -raw region)-docker.pkg.dev/$(terraform output -raw project_id)/rsyncer/rsyncer
+   gcloud builds submit --config=cloudbuild.yaml .
    ```
 
 2. Update the Cloud Run service:
@@ -151,4 +147,4 @@ To destroy all resources:
 terraform destroy
 ```
 
-**Warning:** This will delete all data in Cloud Storage and Firestore!
+**Warning:** This will delete all data

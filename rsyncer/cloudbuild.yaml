@@ -15,7 +15,7 @@ steps:
     args:
       - "-c"
       - |
-        VERSION=$$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+        VERSION=$$(grep '^version' rsyncer_api/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
         echo "Extracted version: $$VERSION"
         echo "$$VERSION" > /workspace/VERSION
 

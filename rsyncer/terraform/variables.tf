@@ -64,7 +64,6 @@ variable "cloud_run_service_name" {
 variable "cloud_run_image" {
   description = "Container image for Cloud Run (use placeholder until image is built)"
   type        = string
-  default     = "gcr.io/cloudrun/hello" # Placeholder image
 }
 
 variable "environment" {
@@ -100,5 +99,9 @@ variable "LASTFM_API_KEY" {
 
 variable "LASTFM_API_SECRET" {
   description = "Last.fm API secret"
+  type        = string
+}
+variable "DB_DSN" {
+  description = "DB DSN for cached tracks etc"
   type        = string
 }

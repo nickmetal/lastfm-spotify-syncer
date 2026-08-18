@@ -76,6 +76,16 @@ resource "google_cloud_run_v2_service" "main" {
         }
       }
 
+      env {
+        name = "DATABASE_URL"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.db_dsn.secret_id
+            version = "latest"
+          }
+        }
+      }
+
 
       # Port configuration
       ports {

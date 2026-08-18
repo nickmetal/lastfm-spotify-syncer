@@ -38,6 +38,18 @@ resource "google_secret_manager_secret_version" "lastfm_api_key_version" {
   secret_data = var.LASTFM_API_KEY
 }
 
+resource "google_secret_manager_secret" "db_dsn" {
+  secret_id = "DB_DSN"
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "db_dsn_version" {
+  secret      = google_secret_manager_secret.db_dsn.id
+  secret_data = var.DB_DSN
+}
+
 resource "google_secret_manager_secret" "lastfm_api_secret" {
   secret_id = "LASTFM_API_SECRET"
   replication {
