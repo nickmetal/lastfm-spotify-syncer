@@ -44,7 +44,7 @@ async fn main() -> Result<()> {
     let port: u16 = std::env::var("PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(8080);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    info!("Starting HTTP API server on {}", addr);
+    info!("Starting HTTP API server on {}:{}", addr, port);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     info!("Server ready. Waiting for shutdown signal (SIGINT/SIGTERM)...");

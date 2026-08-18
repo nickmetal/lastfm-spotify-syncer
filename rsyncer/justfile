@@ -8,7 +8,7 @@ run-dev-cli:
   cargo run -p rsyncer_cli
 
 build-bin-api:
-  SQLX_OFFLINE=true cargo build --release -p rsyncer_api && strip target/release/rsyncer_api
+  SQLX_OFFLINE=true cargo build --release -p rsyncer_api --bin rsyncer_api && strip target/release/rsyncer_api
 
 build-bin-cli:
   cargo build --release -p rsyncer_cli && strip target/release/rsyncer_cli

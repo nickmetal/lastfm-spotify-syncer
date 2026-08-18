@@ -40,10 +40,13 @@ RUN just build-bin-api || true
 # Now copy the rest of the source (invalidates cache only if code changes)
 COPY rsyncer_api/src rsyncer_api/src
 COPY rsyncer_core/src rsyncer_core/src
+COPY .sqlx .sqlx
 
 
 # Final build
 RUN just build-bin-api
+# Copy migrations that are required at runtime
+COPY ./rsyncer_api/migrations rsyncer_api/migrations
 
 # =============================================================================
 # Stage 2: Create minimal runtime image
@@ -64,12 +67,7 @@ LABEL org.opencontainers.image.title="rsyncer-api" \
 
 # Copy the binary from builder
 COPY --from=builder /app/target/release/rsyncer_api /rsyncer_api
-
-# Cloud Run uses PORT environment variable
-ENV PORT=8080
-
-# Expose the port
-EXPOSE 8080
+COPY --from=builder /app/rsyncer_api/migrations /migrations
 
 # Run as non-root user (distroless:nonroot runs as uid 65532)
 USER nonroot
