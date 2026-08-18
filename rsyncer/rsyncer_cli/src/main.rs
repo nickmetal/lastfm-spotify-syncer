@@ -4,10 +4,10 @@
 //! to Last.fm by marking them as loved tracks.
 
 mod cli;
-mod syncer;
+
 use env_logger::Env;
 use log::LevelFilter;
-use rsyncer::clients::errors::Result;
+use rsyncer_core::clients::errors::Result;
 
 fn init_logger() {
     let mut builder = env_logger::Builder::from_env(Env::default().default_filter_or("info"));

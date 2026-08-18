@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT session_key FROM lastfm_session_key LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_key",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "lastfm_session_key",
+            "name": "session_key"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "852b27decf290b293f919707affb6cce4b7402b74e7a4b6048d001933333788c"
+}

@@ -81,3 +81,24 @@ variable "labels" {
     managed_by = "terraform"
   }
 }
+
+# --- Secret variables for Cloud Run (set from tfvars) ---
+variable "RSPOTIFY_CLIENT_ID" {
+  description = "Spotify client ID"
+  type        = string
+}
+
+variable "RSPOTIFY_CLIENT_SECRET" {
+  description = "Spotify client secret"
+  type        = string
+}
+
+variable "LASTFM_API_KEY" {
+  description = "Last.fm API key"
+  type        = string
+}
+
+variable "LASTFM_API_SECRET" {
+  description = "Last.fm API secret"
+  type        = string
+}

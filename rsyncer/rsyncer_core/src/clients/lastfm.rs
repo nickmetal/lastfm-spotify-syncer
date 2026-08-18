@@ -1,13 +1,13 @@
-use log::info;
+use crate::{clients::storage::KeyReadRequest, storage::LastFMStorage};
+use log::{debug, info};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashSet;
-use std::sync::Arc;
 
 use crate::clients::{
-    LocalStorage,
     entities::Track,
     errors::{Error, Result},
+    storage::{KeyReadResult, LastFMSessionKey},
 };
 use lastfm_rust::{APIResponse, Error as LastFMError, Lastfm};
 
@@ -46,25 +46,24 @@ struct AuthSessionResponse {
 /// Client for interacting with the Last.fm API
 pub struct LastFmClient {
     lastfm: Lastfm,
-    storage: Arc<LocalStorage>,
 }
 
 impl LastFmClient {
     /// Creates a new Last.fm client with the provided API client and storage
     #[must_use]
-    pub fn new(lastfm: Lastfm, storage: Arc<LocalStorage>) -> Self {
-        LastFmClient { lastfm, storage }
+    pub fn new(lastfm: Lastfm) -> Self {
+        LastFmClient { lastfm }
     }
 
     /// Creates a Last.fm client using API credentials from environment variables
     ///
     /// Expects `LASTFM_API_KEY` and `LASTFM_API_SECRET` environment variables to be set.
-    pub fn try_default(storage: Arc<LocalStorage>) -> Result<Self> {
+    pub fn try_default() -> Result<Self> {
         let api_key = std::env::var("LASTFM_API_KEY")?;
         let api_secret = std::env::var("LASTFM_API_SECRET")?;
 
         let lastfm = Lastfm::builder().api_key(api_key).api_secret(api_secret).build()?;
-        Ok(LastFmClient::new(lastfm, storage))
+        Ok(LastFmClient::new(lastfm))
     }
 
     /// Obtains a new session key from the Last.fm API via user authorization
@@ -92,20 +91,24 @@ impl LastFmClient {
     /// Attempts to load a cached session key from local storage first.
     /// If not found, initiates the OAuth flow to obtain a new session key.
     /// All authenticated API calls will use this session key.
-    pub async fn authorize_client(&mut self) -> Result<()> {
+    pub async fn authorize_client(&mut self, storage: &dyn LastFMStorage) -> Result<()> {
         // Get cached session key from local storage if available
-        let session_key_result = self.storage.read_session_key().await;
+        let key_req = KeyReadRequest {}; // TODO: add user identifier to support multiple users in the future
+        let session_key_result = storage.read_auth_key(key_req).await?;
 
-        if let Some(session_key) = session_key_result {
+        if let KeyReadResult::Found(session_key) = session_key_result {
             // TODO: add session key validation. Key may be invalid if user revoked access or by other reasons
-            self.lastfm.set_sk(session_key);
+            debug!("Got lastfm key from storage");
+            self.lastfm.set_sk(session_key.get_key());
             return Ok(());
         }
 
+        debug!("Getting lastfm key from api");
         let session_key_from_api = self.get_session_key_from_api().await?;
         self.lastfm.set_sk(session_key_from_api.clone());
         // Store session key in storage to avoid re-authentication next time
-        self.storage.update_session_key(session_key_from_api).await?;
+        storage.store_auth_key(LastFMSessionKey { key: session_key_from_api }).await?;
+        debug!("Stored lastfm key in storage");
         Ok(())
     }
 

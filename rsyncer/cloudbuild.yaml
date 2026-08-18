@@ -72,12 +72,16 @@ steps:
       set -e
       VERSION=$(cat /workspace/VERSION)
       IMAGE_BASE="${REGION}-docker.pkg.dev/${PROJECT}/${SERVICE_NAME}/${SERVICE_NAME}"
-      # Deploy using the version tag for traceability
+      # Get the deployed service URI
+      SERVICE_URI=$(gcloud run services describe ${SERVICE_NAME} --region=${REGION} --format='value(status.url)')
+      REDIRECT_URI="${SERVICE_URI}/callback"
+      # Deploy using the version tag for traceability and set RSPOTIFY_REDIRECT_URI and RUST_LOG
       gcloud run deploy ${SERVICE_NAME} \
         --image="${IMAGE_BASE}:${VERSION}" \
         --region=${REGION} \
         --platform=managed \
-        --allow-unauthenticated
+        --allow-unauthenticated \
+        --update-env-vars=RSPOTIFY_REDIRECT_URI=${REDIRECT_URI},RUST_LOG=debug
     waitFor: ["push"]
 
   # Step 5: Cleanup old images and build artifacts after successful deploy

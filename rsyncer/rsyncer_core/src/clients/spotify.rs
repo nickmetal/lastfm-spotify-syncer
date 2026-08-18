@@ -37,10 +37,10 @@ impl SpotifyClient {
     /// Fetches all liked tracks from the user's Spotify "Liked Songs" playlist
     ///
     /// Returns a vector of tracks with their IDs, names, and artist information.
-    pub async fn get_liked_tracks(&self) -> Result<Vec<Track>> {
+    pub async fn get_liked_tracks(&self) -> Result<Box<Vec<Track>>> {
         let stream = self.spotify.current_user_saved_tracks(None);
         let tracks: Vec<Track> = stream.map_ok(Track::from).try_collect().await?;
-        Ok(tracks)
+        Ok(Box::new(tracks))
     }
 
     /// Authorizes the Spotify client via CLI prompt and OAuth flow
@@ -66,10 +66,11 @@ impl SpotifyClient {
 
         // Set up token caching in a default cache directory
         // TODO: check for duckdb usage here
-        let cache_path = dirs::cache_dir()
+        let cache_path: PathBuf = dirs::cache_dir()
             .unwrap_or_else(|| PathBuf::from("/tmp")) // Fallback to /tmp if cache directory can't be determined
             .join(".rsyncer_cache");
 
+        debug!("Config path: {:?}", cache_path);
         let spotify = AuthCodeSpotify::with_config(
             creds,
             oauth,

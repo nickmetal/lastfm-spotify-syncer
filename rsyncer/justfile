@@ -1,24 +1,30 @@
 test:
-  cargo llvm-cov --summary-only --features cli
+  cargo llvm-cov --summary-only
 
 lint:
-  cargo clippy --all-targets --features cli -- -D warnings
+  cargo clippy --all-targets -- -D warnings
 
-build-api:
-  cargo build --release --bin http_api
+run-dev-cli:
+  cargo run -p rsyncer_cli
 
-build-cli:
-  cargo build --release --bin rsyncer --features cli
+build-bin-api:
+  cargo build --release -p rsyncer_api && strip target/release/rsyncer_api
+
+build-bin-cli:
+  cargo build --release -p rsyncer_cli && strip target/release/rsyncer_cli
+
+gcloud-build:
+  gcloud builds submit --config=cloudbuild.yaml .
 
 docker-build:
   #!/usr/bin/env bash
-  VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+  VERSION=$(grep '^version' rsyncer_api/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
   echo "Building rsyncer-api:$VERSION"
   docker build --build-arg VERSION=$VERSION -t rsyncer-api:$VERSION .
 
 docker-run:
   #!/usr/bin/env bash
-  VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+  VERSION=$(grep '^version' rsyncer_api/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
   echo "Running rsyncer-api:$VERSION"
   docker run --rm -it rsyncer-api:$VERSION -p 8080:8080 --name rsyncer-api
 

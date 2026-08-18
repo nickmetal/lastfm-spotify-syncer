@@ -4,8 +4,19 @@ resource "google_cloud_run_v2_service" "main" {
   name     = var.cloud_run_service_name
   location = var.region
 
-  # Ensure APIs are enabled first
-  depends_on = [google_project_service.apis]
+  # Ensure APIs, secrets, and secret IAM bindings are enabled/created first
+  depends_on = [
+    google_project_service.apis,
+    google_secret_manager_secret.rspotify_client_id,
+    google_secret_manager_secret.rspotify_client_secret,
+    google_secret_manager_secret.lastfm_api_key,
+    google_secret_manager_secret.lastfm_api_secret,
+    google_secret_manager_secret_version.rspotify_client_id_version,
+    google_secret_manager_secret_version.rspotify_client_secret_version,
+    google_secret_manager_secret_version.lastfm_api_key_version,
+    google_secret_manager_secret_version.lastfm_api_secret_version,
+    google_secret_manager_secret_iam_member.cloudrun_sa_secrets_reader
+  ]
 
   template {
     labels = {
@@ -25,11 +36,46 @@ resource "google_cloud_run_v2_service" "main" {
         cpu_idle = true # Allow CPU to be throttled when idle (cost optimization)
       }
 
-      # Environment variables - add your app-specific vars here
+
+
+      # Attach secrets as environment variables from Secret Manager
       env {
-        name  = "RUST_LOG"
-        value = "info"
+        name = "RSPOTIFY_CLIENT_ID"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.rspotify_client_id.secret_id
+            version = "latest"
+          }
+        }
       }
+      env {
+        name = "RSPOTIFY_CLIENT_SECRET"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.rspotify_client_secret.secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name = "LASTFM_API_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.lastfm_api_key.secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name = "LASTFM_API_SECRET"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.lastfm_api_secret.secret_id
+            version = "latest"
+          }
+        }
+      }
+
 
       # Port configuration
       ports {

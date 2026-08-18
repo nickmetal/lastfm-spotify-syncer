@@ -8,33 +8,42 @@ ARG GIT_SHA=unknown
 # Stage 1: Build the Rust binary
 # =============================================================================
 
-FROM rust:1.92-slim-trixie AS builder
+FROM rust:1.97-slim-trixie AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
     build-essential \
+    just \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 # Leverage Docker cache: copy manifests first, build dependencies, then source
-COPY Cargo.toml Cargo.lock ./
-RUN mkdir src
-COPY src/main.rs src/
+COPY Cargo.toml Cargo.lock justfile ./
+COPY rsyncer_api/Cargo.toml ./rsyncer_api/Cargo.toml
+COPY rsyncer_core/Cargo.toml ./rsyncer_core/Cargo.toml
+COPY rsyncer_cli/Cargo.toml ./rsyncer_cli/Cargo.toml
+
+RUN mkdir -p rsyncer_api/src
+RUN mkdir -p rsyncer_core/src
+RUN mkdir -p rsyncer_cli/src
+
+COPY rsyncer_api/src/main.rs rsyncer_api/src/
+COPY rsyncer_core/src/lib.rs rsyncer_core/src/
+COPY rsyncer_cli/src/main.rs rsyncer_cli/src/
+
 RUN cargo fetch
-RUN cargo build --release --bin http_api || true
+RUN just build-bin-api || true
 
 # Now copy the rest of the source (invalidates cache only if code changes)
-COPY src ./src
+COPY rsyncer_api/src rsyncer_api/src
+COPY rsyncer_core/src rsyncer_core/src
 
 
 # Final build
-RUN cargo build --release --bin http_api
-
-# Strip debug symbols to reduce binary size
-RUN strip target/release/http_api
+RUN just build-bin-api
 
 # =============================================================================
 # Stage 2: Create minimal runtime image
@@ -54,7 +63,7 @@ LABEL org.opencontainers.image.title="rsyncer-api" \
       org.opencontainers.image.licenses="MIT"
 
 # Copy the binary from builder
-COPY --from=builder /app/target/release/http_api /http_api
+COPY --from=builder /app/target/release/rsyncer_api /rsyncer_api
 
 # Cloud Run uses PORT environment variable
 ENV PORT=8080
@@ -66,4 +75,4 @@ EXPOSE 8080
 USER nonroot
 
 # Run the binary
-ENTRYPOINT ["/http_api"]
+ENTRYPOINT ["/rsyncer_api"]
